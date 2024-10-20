@@ -20,22 +20,14 @@
 
 # Go workspace file
 go.work
-go.work.sum
 
-# Files built from proto
+# Develop tools
+.vscode/
+.idea/
+*.swp
+
+# proto 生成文件
 *.pb.go
 *.pb.validate.go
 *.swagger.json
 openapi.yaml
-
-# Dependency Injection
-wire_gen.go
-
-# Development Environment file
-.env
-data/conf
-data/sqlite.db
-
-# IDE
-.idea
-.vscode

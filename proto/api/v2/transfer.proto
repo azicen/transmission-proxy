@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package transmission.transfer.api.v2;
+
+import "validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "transmission-proxy/api/v2;v2";
+
+service Transfer {
+
+  // Ban peers。
+  // https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#ban-peers
+  rpc BanPeers(BanPeersRequest) returns (google.protobuf.Empty) {
+    option(google.api.http) = {
+      post: "/api/v2/transfer/banPeers"
+      body: "*"
+    };
+  }
+}
+
+// Ban Peers 请求
+message BanPeersRequest {
+  // 要禁止的对等点，或用竖线分隔的多个对等点`|` 。
+  // 每个对等点都是一个以冒号分隔的`host:port`。
+  string peers = 1;
+}
+

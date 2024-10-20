@@ -1,0 +1,192 @@
+syntax = "proto3";
+
+package transmission.app.api.v2;
+
+import "validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+option go_package = "transmission-proxy/api/v2;v2";
+
+service App {
+
+  // 获取应用程序版本。
+  // https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#get-application-version
+  rpc GetVersion(google.protobuf.Empty) returns (google.protobuf.StringValue) {
+    option(google.api.http) = {
+      get: "/api/v2/app/version"
+    };
+  }
+
+  // 获取应用程序首选项。
+  // https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#get-application-preferences
+  rpc GetPreferences(google.protobuf.Empty) returns (GetPreferencesResponse) {
+    option(google.api.http) = {
+      get: "/api/v2/app/preferences"
+    };
+  }
+
+  // 设置应用程序首选项。
+  // https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#set-application-preferences
+  rpc SetPreferences(SetPreferencesRequest) returns (google.protobuf.Empty) {
+    option(google.api.http) = {
+      post: "/api/v2/app/setPreferences"
+      body: "*"
+    };
+  }
+}
+
+// 获取应用程序首选项响应
+message GetPreferencesResponse {
+  // 当前选择的语言，例如 "en_GB" 表示英文
+  string locale = 1;
+
+  // 添加种子时是否创建子文件夹
+  bool create_subfolder_enabled = 2;
+
+  // 种子是否以暂停状态添加
+  bool start_paused_enabled = 3;
+
+  // 自动删除模式
+  int32 auto_delete_mode = 4;
+
+  // 是否为所有文件预分配磁盘空间
+  bool preallocate_all = 5;
+
+  // 是否为未完成的文件添加".!qB"后缀
+  bool incomplete_files_ext = 6;
+
+  // 是否默认启用自动种子管理
+  bool auto_tmm_enabled = 7;
+
+  // 当分类改变时是否重新定位种子
+  bool torrent_changed_tmm_enabled = 8;
+
+  // 当默认保存路径更改时是否重新定位种子
+  bool save_path_changed_tmm_enabled = 9;
+
+  // 当分类的保存路径改变时是否重新定位种子
+  bool category_changed_tmm_enabled = 10;
+
+  // 种子的默认保存路径
+  string save_path = 11;
+
+  // 是否启用未完成种子的临时文件夹
+  bool temp_path_enabled = 12;
+
+  // 未完成种子的临时文件夹路径
+  string temp_path = 13;
+
+  // 监控目录及其下载路径映射
+  // 用于监控 torrent 文件的目录与其对应的下载路径
+  map<string, string> scan_dirs = 14;
+
+  // 将 .torrent 文件复制到的目录路径
+  string export_dir = 15;
+
+  // 将完成下载的 .torrent 文件复制到的目录路径
+  string export_dir_fin = 16;
+
+  // 是否启用电子邮件通知
+  bool mail_notification_enabled = 17;
+
+  // 发送通知的电子邮件地址
+  string mail_notification_sender = 18;
+
+  // 要发送通知的电子邮件地址
+  string mail_notification_email = 19;
+
+  // SMTP 服务器地址
+  string mail_notification_smtp = 20;
+
+  // SMTP 服务器是否需要 SSL 连接
+  bool mail_notification_ssl_enabled = 21;
+
+  // SMTP 服务器是否需要认证
+  bool mail_notification_auth_enabled = 22;
+
+  // SMTP 认证用户名
+  string mail_notification_username = 23;
+
+  // SMTP 认证密码
+  string mail_notification_password = 24;
+
+  // 种子下载完成后是否运行外部程序
+  bool autorun_enabled = 25;
+
+  // 如果启用了 autorun_enabled，要运行的程序路径、名称和参数
+  string autorun_program = 26;
+
+  // 是否启用种子队列
+  bool queueing_enabled = 27;
+
+  // 最大同时下载数
+  int32 max_active_downloads = 28;
+
+  // 最大同时下载和上传数
+  int32 max_active_torrents = 29;
+
+  // 最大同时上传数
+  int32 max_active_uploads = 30;
+
+  // 是否将无活动的种子排除在限制之外
+  bool dont_count_slow_torrents = 31;
+
+  // 认为种子下载速度“慢”的阈值
+  int32 slow_torrent_dl_rate_threshold = 32;
+
+  // 认为种子上传速度“慢”的阈值
+  int32 slow_torrent_ul_rate_threshold = 33;
+
+  // 种子被认为“慢”之前的无活动时间
+  int32 slow_torrent_inactive_timer = 34;
+
+  // 是否启用分享率限制
+  bool max_ratio_enabled = 35;
+
+  // 全局分享率限制
+  float max_ratio = 36;
+
+  // 达到分享率限制后的动作
+  // 0 暂停激流; 1 删除激流
+  int32 max_ratio_act = 37;
+
+  // 用于传入连接的端口
+  int32 listen_port = 38;
+
+  // 是否启用 UPnP/NAT-PMP
+  bool upnp = 39;
+
+  // 是否随机选择端口
+  bool random_port = 40;
+
+  // 全局下载速度限制
+  int32 dl_limit = 41;
+
+  // 全局上传速度限制
+  int32 up_limit = 42;
+
+  // 最大全局连接数
+  int32 max_connec = 43;
+
+  // 每个种子的最大连接数
+  int32 max_connec_per_torrent = 44;
+
+  // 最大上传数
+  int32 max_uploads = 45;
+
+  // 每个种子的最大上传数
+  int32 max_uploads_per_torrent = 46;
+}
+
+// 设置应用程序首选项请求
+message SetPreferencesRequest {
+
+  message Json {
+    // Ban IP 列表，`\n`间隔
+    string banned_IPs = 1;
+  }
+
+  string json = 1;
+}

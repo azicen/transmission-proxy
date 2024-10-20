@@ -1,0 +1,231 @@
+syntax = "proto3";
+
+package transmission.sync.api.v2;
+
+import "validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+import "v2/torrent.proto";
+
+option go_package = "transmission-proxy/api/v2;v2";
+
+service Sync {
+
+  // 获取 Main Data。
+  // https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#get-main-data
+  rpc GetMainData(GetMainDataRequest) returns (GetMainDataResponse) {
+    option(google.api.http) = {
+      get: "/api/v2/sync/maindata"
+    };
+  }
+
+  // 获取种子 peer 数据。
+  // https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#get-torrent-peers-data
+  rpc GetTorrentPeers(GetTorrentPeersRequest) returns (GetTorrentPeersResponse) {
+    option(google.api.http) = {
+      get: "/api/v2/sync/torrentPeers"
+    };
+  }
+}
+
+// 获取 Main Data 请求
+message GetMainDataRequest {
+  int32 rid = 1;
+}
+
+// 获取 Main Data 响应
+message GetMainDataResponse {
+  // 响应ID
+  int32 rid = 1 [(validate.rules).int32 = {gte: 0}];
+
+  // 响应包含全部数据还是部分数据
+  bool full_update = 2;
+
+  // 属性：torrent 哈希，值：与torrent 列表相同
+  map<string, transmission.torrent.api.v2.TorrentInfo> torrents = 3;
+
+  // 自上次请求以来删除的种子的哈希值列表
+  repeated string torrents_removed = 4;
+
+  // 自上次请求后添加的类别信息
+  map<string, Category> categories = 5;
+
+  // 自上次请求以来删除的类别列表
+  repeated string categories_removed = 6;
+
+  // 自上次请求以来添加的标签列表
+  repeated string tags = 7;
+
+  // 自上次请求以来删除的标签列表
+  repeated string tags_removed = 8;
+
+  // 服务器状态
+  ServerState server_state = 9;
+}
+
+// 类别信息
+message Category {
+  // 类别名称
+  string name = 1;
+  // 保存目录
+  string savePath = 2;
+}
+
+// 服务器状态
+message ServerState {
+  // 所有时间下载总量（字节）
+  int64 alltime_dl = 1;
+
+  // 所有时间上传总量（字节）
+  int64 alltime_ul = 2;
+
+  // 平均排队时间（毫秒）
+  int64 average_time_queue = 3;
+
+  // 连接状态
+  string connection_status = 4;
+
+  // 连接的 DHT 节点数
+  int32 dht_nodes = 5;
+
+  // 本次会话下载的数据量（字节）
+  int64 dl_info_data = 6;
+
+  // 下载速度（字节/秒）
+  int64 dl_info_speed = 7;
+
+  // 下载速度限制（字节/秒）
+  int64 dl_rate_limit = 8;
+
+  // 磁盘上剩余空间（字节）
+  int64 free_space_on_disk = 9;
+
+  // 全局分享比例
+  string global_ratio = 10;
+
+  // 排队的 I/O 任务数
+  int32 queued_io_jobs = 11;
+
+  // 是否正在排队
+  bool queueing = 12;
+
+  // 读取缓存命中率
+  string read_cache_hits = 13;
+
+  // 读取缓存过载
+  string read_cache_overload = 14;
+
+  // 刷新间隔（毫秒）
+  int32 refresh_interval = 15;
+
+  // 总缓存大小（字节）
+  int64 total_buffers_size = 19;
+
+  // 总对等连接数
+  int32 total_peer_connections = 20;
+
+  // 总排队大小（字节）
+  int64 total_queued_size = 21;
+
+  // 本次会话浪费的总数据量（字节）
+  int64 total_wasted_session = 22;
+
+  // 本次会话上传的数据量（字节）
+  int64 up_info_data = 23;
+
+  // 上传信息速度（字节/秒）
+  int64 up_info_speed = 24;
+
+  // 使用的上传速度限制（字节/秒）
+  int64 up_rate_limit = 25;
+
+  // 是否使用替代速度限制
+  bool use_alt_speed_limits = 26;
+
+  // 是否使用子类别
+  bool use_subcategories = 27;
+
+  // 写入缓存过载
+  string write_cache_overload = 28;
+}
+
+// 获取种子Peer数据请求
+message GetTorrentPeersRequest {
+  // 种子哈希值，必须是40个十六进制字符
+  string hash = 1 [(validate.rules).string = {
+    pattern: "^[a-fA-F0-9]{40}$"
+  }];
+
+  // 响应 ID。如果未提供，将假定 rid=0。
+  // 如果给定的 rid 与上次服务器回复的不同，full_update 将为 true（更多信息请查看服务器回复详情）
+  int32 rid = 2;
+}
+
+// 获取种子Peer数据响应
+message GetTorrentPeersResponse {
+  // 是否为完整更新
+  bool full_update = 1;
+
+  // 对等点信息，键为 IP:端口，值为 PeerInfo 类型
+  map<string, PeerInfo> peers = 2;
+
+  // 响应 ID
+  int32 rid = 3;
+
+  // 是否显示标志
+  bool show_flags = 4;
+}
+
+// Peer信息
+message PeerInfo {
+  // 客户端信息
+  string client = 1;
+
+  // 连接类型
+  string connection = 2;
+
+  // 国家
+  string country = 3;
+
+  // 国家代码
+  string country_code = 4;
+
+  // 下载速度（字节/秒）
+  int64 dl_speed = 5;
+
+  // 已下载数据量（字节）
+  int64 downloaded = 6;
+
+  // 文件信息
+  string files = 7;
+
+  // 标志信息
+  string flags = 8;
+
+  // 标志描述
+  string flags_desc = 9;
+
+  // IP 地址
+  string ip = 10;
+
+  // 客户端的 Peer ID
+  string peer_id_client = 11;
+
+  // 端口号
+  int32 port = 12;
+
+  // 进度（0-100%）
+  int32 progress = 13;
+
+  // 相关性
+  int32 relevance = 14;
+
+  // 是否被影子禁用
+  bool shadowbanned = 15;
+
+  // 上传速度（字节/秒）
+  int64 up_speed = 16;
+
+  // 已上传数据量（字节）
+  int64 uploaded = 17;
+}

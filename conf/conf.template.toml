@@ -1,0 +1,18 @@
+[service]
+# 日志等级
+log_level = "${LOG_LEVEL:DEBUG}"
+
+[trigger.http]
+host = "0.0.0.0"
+port = 8000
+timeout = "5s"
+
+[infra.tr]
+rpc_url = "http://admin:admin@localhost:9091/transmission/rpc"
+request_interval = "5s"
+ban_whitelist = []
+transfer = []
+sub_transfer = ""
+
+[infra.database]
+path = "./data/sqlite.db"

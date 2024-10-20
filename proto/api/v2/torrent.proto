@@ -1,0 +1,334 @@
+syntax = "proto3";
+
+package transmission.torrent.api.v2;
+
+import "validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/api/httpbody.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "transmission-proxy/api/v2;v2";
+
+service Torrent {
+
+  // 获取种子列表。
+  // https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#get-torrent-list
+  rpc GetInfo(GetInfoRequest) returns (google.api.HttpBody) {
+    option(google.api.http) = {
+      get: "/api/v2/torrents/info"
+    };
+  }
+
+  // 获取种子属性属性。
+  // https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#get-torrent-generic-properties
+  rpc GetProperties(GetPropertiesRequest) returns (GetPropertiesResponse) {
+    option(google.api.http) = {
+      get: "/api/v2/torrents/properties"
+    };
+  }
+}
+
+// 获取种子列表请求
+message GetInfoRequest {
+  // 过滤种子列表的状态。可选的状态包括：
+  // "all"（全部）、"downloading"（正在下载）、"seeding"（做种中）、
+  // "completed"（已完成）、"paused"（已暂停）、"active"（活跃中）、
+  // "inactive"（空闲）、"resumed"（恢复）、"stalled"（停滞中）、
+  // "stalled_uploading"（上传已停滞）、"stalled_downloading"（下载已停滞）、"errored"（错误）。
+  optional string filter = 1 [(validate.rules).string = {
+    in: ["all", "downloading", "seeding", "completed",
+      "paused", "active", "inactive", "resumed",
+      "stalled", "stalled_uploading", "stalled_downloading", "errored"]
+  }];
+
+  // 类别筛选：获取指定类别的种子。
+  // 空字符串表示“无类别”；未传递该参数表示“任意类别”。
+  // 请确保类别名称经过 URL 编码，如 "My category" 编码为 "My%20category"。
+  optional string category = 2 [(validate.rules).string = {max_len: 100}];
+
+  // 标签筛选：获取指定标签的种子（支持 2.8.3+）。
+  // 空字符串表示“无标签”；未传递该参数表示“任意标签”。
+  // 请确保标签名称经过 URL 编码，如 "My tag" 编码为 "My%20tag"。
+  optional string tag = 3 [(validate.rules).string = {max_len: 100}];
+
+  // 按指定字段排序。可以使用响应 JSON 中的任意字段作为排序键。
+  // 示例：可以按 "name", "size", "ratio" 等字段排序。
+  optional string sort = 4 [(validate.rules).string = {max_len: 50}];
+
+  // 是否启用反向排序。默认为 false。
+  // 如果启用，结果会按降序排列。
+  optional bool reverse = 5;
+
+  // 限制返回的种子数量。
+  // 该值必须为正数。
+  optional int32 limit = 6 [(validate.rules).int32 = {gte: 0}];
+
+  // 设置结果的偏移量（用于分页）。
+  // 如果为负数，则从结果末尾偏移。
+  optional int32 offset = 7 [(validate.rules).int32 = {gte: -100, lte: 1000}];
+
+  // 根据种子哈希值过滤。可以传入多个哈希，用 "|" 分隔。
+  // 每个哈希必须是 40 个字符的十六进制字符串。
+  // 示例："hash1|hash2|hash3"。
+  optional string hashes = 8 [(validate.rules).string = {
+    pattern: "([a-fA-F0-9]{40})(\\|[a-fA-F0-9]{40})*"
+  }];
+}
+
+// 种子详细信息
+message TorrentInfo {
+  // 客户端添加该种子的时间（Unix 时间戳）
+  int64 added_on = 1;
+
+  // 还需下载的数据量（字节数）
+  int64 amount_left = 2;
+
+  // 是否由自动种子管理管理
+  bool auto_tmm = 3;
+
+  // 当前可用的文件片段百分比
+  float availability = 4 [(validate.rules).float = {gte: 0.0, lte: 1.0}];
+
+  // 种子的类别
+  string category = 5;
+
+  // 已完成的数据量（字节数）
+  int64 completed = 6;
+
+  // 种子完成下载的时间（Unix 时间戳）
+  int64 completion_on = 7;
+
+  // 种子内容的绝对路径（多文件种子为根目录路径，单文件种子为文件路径）
+  string content_path = 8;
+
+  // 种子的下载速度限制（字节/秒），-1 表示无限制
+  int64 dl_limit = 9;
+
+  // 当前种子的下载速度（字节/秒）
+  int64 dlspeed = 10;
+
+  // 已下载的数据量
+  int64 downloaded = 11;
+
+  // 本次会话中已下载的数据量
+  int64 downloaded_session = 12;
+
+  // 种子的预计完成时间（秒）
+  int64 eta = 13;
+
+  // 如果首尾片段已优先下载，则为 true
+  bool f_l_piece_prio = 14;
+
+  // 如果启用了强制启动，则为 true
+  bool force_start = 15;
+
+  // 种子的哈希值
+  string hash = 16;
+
+  // 如果种子来自私有 Tracker，则为 true
+  bool isPrivate = 17;
+
+  // 最近一次上传或下载的时间（Unix 时间戳）
+  int64 last_activity = 18;
+
+  // 种子的磁力链接
+  string magnet_uri = 19;
+
+  // 达到最大分享率后停止做种的最大分享比
+  float max_ratio = 20;
+
+  // 达到最大做种时间（秒）后停止做种
+  int64 max_seeding_time = 21;
+
+  // 种子名称
+  string name = 22;
+
+  // 种群中的做种者数量
+  int32 num_complete = 23;
+
+  // 种群中的下载者数量
+  int32 num_incomplete = 24;
+
+  // 已连接的下载者数量
+  int32 num_leechs = 25;
+
+  // 已连接的做种者数量
+  int32 num_seeds = 26;
+
+  // 种子的优先级。若队列已禁用或处于做种模式，则返回 -1
+  int32 priority = 27;
+
+  // 种子的下载进度（百分比/100）
+  float progress = 28 [(validate.rules).float = {gte: 0.0, lte: 1.0}];
+
+  // 种子的分享比。最大值为 9999
+  float ratio = 29 [(validate.rules).float = {lte: 9999.0}];
+
+  // 设置的分享比限制
+  float ratio_limit = 30;
+
+  // 种子数据存储的路径
+  string save_path = 31;
+
+  // 种子完成后的做种时间（秒）
+  int64 seeding_time = 32;
+
+  // 种子达到的最大做种时间限制（秒）。如果自动管理启用，则为 -2；未设置时默认为 -1
+  int64 seeding_time_limit = 33;
+
+  // 种子上次完成的时间（Unix 时间戳）
+  int64 seen_complete = 34;
+
+  // 如果启用了顺序下载，则为 true
+  bool seq_dl = 35;
+
+  // 已选文件的总大小（字节数）
+  int64 size = 36;
+
+  // 种子的状态
+  string state = 37 [(validate.rules).string = {
+    in: ["all", "downloading", "seeding", "completed",
+      "paused", "active", "inactive", "resumed",
+      "stalled", "stalled_uploading", "stalled_downloading", "errored"]
+  }];
+
+  // 如果启用了超级做种模式，则为 true
+  bool super_seeding = 38;
+
+  // 种子的标签列表，以逗号分隔
+  string tags = 39;
+
+  // 种子的总活跃时间（秒）
+  int64 time_active = 40;
+
+  // 种子的总大小（包括未选择的文件，单位：字节）
+  int64 total_size = 41;
+
+  // 第一个处于工作状态的 Tracker。如果没有工作中的 Tracker，则返回空字符串
+  string tracker = 42;
+
+  // 种子的上传速度限制（字节/秒），-1 表示无限制
+  int64 up_limit = 43;
+
+  // 已上传的数据量
+  int64 uploaded = 44;
+
+  // 本次会话中已上传的数据量
+  int64 uploaded_session = 45;
+
+  // 种子的上传速度（字节/秒）
+  int64 upspeed = 46;
+}
+
+// 获取种子属性属性请求
+message GetPropertiesRequest {
+  // 种子哈希值，必须是40个十六进制字符
+  string hash = 1 [(validate.rules).string = {
+    pattern: "^[a-fA-F0-9]{40}$"
+  }];
+}
+
+// 获取种子属性属性响应
+message GetPropertiesResponse {
+  // 种子保存路径
+  string save_path = 1;
+
+  // 种子创建日期（Unix 时间戳）
+  int64 creation_date = 2;
+
+  // 种子片段大小（字节）
+  int64 piece_size = 3;
+
+  // 种子评论
+  string comment = 4;
+
+  // 种子浪费的总数据量（字节）
+  int64 total_wasted = 5;
+
+  // 种子上传的总数据量（字节）
+  int64 total_uploaded = 6;
+
+  // 本次上传的总数据量（字节）
+  int64 total_uploaded_session = 7;
+
+  // 种子下载的总数据量（字节）
+  int64 total_downloaded = 8;
+
+  // 本次会话下载的总数据（字节）
+  int64 total_downloaded_session = 9;
+
+  // 种子上传限制（字节/秒）
+  int64 up_limit = 10;
+
+  // 种子下载限制（字节/秒）
+  int64 dl_limit = 11;
+
+  // 种子运行时间（秒）
+  int64 time_elapsed = 12;
+
+  // 种子完成时所用的时间（秒）
+  int64 seeding_time = 13;
+
+  // 种子连接数
+  int64 nb_connections = 14;
+
+  // 种子连接数限制
+  int64 nb_connections_limit = 15;
+
+  // 种子分享比例
+  float share_ratio = 16;
+
+  // 添加此 torrent 的时间（Unix 时间戳）
+  int64 addition_date = 17;
+
+  // 种子完成日期（Unix 时间戳）
+  int64 completion_date = 18;
+
+  // 种子创建者
+  string created_by = 19;
+
+  // 种子平均下载速度（字节/秒）
+  int64 dl_speed_avg = 20;
+
+  // 种子下载速度（字节/秒）
+  int64 dl_speed = 21;
+
+  // 种子的预计到达时间（秒）
+  int64 eta = 22;
+
+  // 最后看到的完整日期（Unix 时间戳）
+  int64 last_seen = 23;
+
+  // 连接到的对等点数量
+  int64 peers = 24;
+
+  // 群体中的同伴数量
+  int64 peers_total = 25;
+
+  // 拥有件数
+  int32 pieces_have = 26;
+
+  // 种子文件的数量
+  int32 pieces_num = 27;
+
+  // 距离下一次广播的秒数
+  int32 reannounce = 28;
+
+  // 连接到的种子数量
+  int64 seeds = 29;
+
+  // 群体中的种子数量
+  int64 seeds_total = 30;
+
+  // 种子总大小（字节）
+  int64 total_size = 31;
+
+  // 种子平均上传速度（字节/秒）
+  int64 up_speed_avg = 32;
+
+  // 种子上传速度（字节/秒）
+  int64 up_speed = 33;
+
+  // 如果 torrent 来自私人追踪器，则为 True
+  bool isPrivate = 34;
+}

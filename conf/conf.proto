@@ -1,0 +1,52 @@
+syntax = "proto3";
+package transmission.proxy.conf;
+
+option go_package = "transmission-proxy/conf;conf";
+
+import "google/protobuf/duration.proto";
+
+message Bootstrap {
+  Service service = 1;
+  Trigger trigger = 2;
+  Infra infra = 3;
+}
+
+message Service {
+  string log_level = 1; // 日志等级
+}
+
+message Trigger {
+  message HTTP {
+    string host = 1;
+    int32 port = 2;
+    google.protobuf.Duration timeout = 3;
+  }
+  HTTP http = 1;
+}
+
+message Infra {
+  message TR {
+    // Transmission RPC URL
+    // Example: http://user:password@127.0.0.1:9091/transmission/rpc
+    string rpc_url = 1;
+
+    // 刷新tr数据的时间间隔
+    google.protobuf.Duration request_interval = 2;
+
+    // ban ip 白名单
+    repeated string ban_whitelist = 3;
+
+    // 添加以下 transfer 到新的种子
+    repeated string transfer = 4;
+
+    // 自定义订阅列表
+    string sub_transfer = 5;
+  }
+
+  message Database {
+    // sqlite path
+    string path = 1;
+  }
+  TR tr = 1;
+  Database database = 2;
+}

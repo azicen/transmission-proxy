@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package transmission.auth.api.v2;
+
+import "validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "transmission-proxy/api/v2;v2";
+
+service Auth {
+
+  // 登陆。
+  // https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#login
+  rpc Login(AuthRequest) returns (google.protobuf.Empty) {
+    option(google.api.http) = {
+      post: "/api/v2/auth/login"
+      body: "*"
+    };
+  }
+}
+
+// 登陆请求
+message AuthRequest {
+  string username = 1 [(validate.rules).string = {max_len: 32}];
+  string password = 2 [(validate.rules).string = {max_len: 128}];
+}
