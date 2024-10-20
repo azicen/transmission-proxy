@@ -215,7 +215,7 @@ message PeerInfo {
   int32 port = 12;
 
   // 进度（0-100%）
-  int32 progress = 13;
+  double progress = 13;
 
   // 相关性
   int32 relevance = 14;

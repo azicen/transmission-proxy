@@ -29,9 +29,9 @@ type Peer struct {
 	Connection   string // 连接类型
 	PeerIdClient string // 客户端的 Peer ID
 	ClientName   string // 客户端名称
-	//Country           string  // 国家
-	//CountryCode       string  // 国家代码
-	Progress      float32 // 进度（0-100%）
+	//Country     string  // 国家
+	//CountryCode string  // 国家代码
+	Progress      float64 // 进度（0-100%）
 	DownloadSpeed int64   // 下载速度（字节/秒）
 	Downloaded    int64   // 已下载数据量（字节） 代理计算
 	UploadSpeed   int64   // 上传速度（字节/秒）
@@ -260,23 +260,23 @@ func (uc *TorrentUsecase) GetTorrentPeers(ctx context.Context, hash string) (
 		flags := b.String()
 
 		qbPeers[addr] = &pb.PeerInfo{
-			Client:       peerInfo.ClientName,            // 客户端信息
-			Connection:   peerInfo.Connection,            // 连接类型
-			Country:      "",                             // 国家 TR:noFunc
-			CountryCode:  "",                             // 国家代码 TR:noFunc
-			DlSpeed:      peerInfo.DownloadSpeed,         // 下载速度（字节/秒）
-			Downloaded:   peerInfo.Downloaded,            // 已下载数据量（字节） TR:noFunc 代理统计
-			Files:        "",                             // 文件信息 TR:noFunc
-			Flags:        flags,                          // 标志信息
-			FlagsDesc:    "",                             // 标志描述 TR:noFunc
-			Ip:           peerInfo.Ip,                    // IP 地址
-			PeerIdClient: peerInfo.ClientName,            // 客户端的 Peer ID TR:noFunc 代理统计
-			Port:         peerInfo.Port,                  // 端口号
-			Progress:     int32(peerInfo.Progress * 100), // 进度（0-100%）
-			Relevance:    0,                              // 相关性 TR:noFunc
-			Shadowbanned: false,                          // 是否被影子禁用 TR:noFunc
-			UpSpeed:      peerInfo.UploadSpeed,           // 上传速度（字节/秒）
-			Uploaded:     peerInfo.Uploaded,              // 已上传数据量（字节） TR:noFunc 代理统计
+			Client:       peerInfo.ClientName,    // 客户端信息
+			Connection:   peerInfo.Connection,    // 连接类型
+			Country:      "",                     // 国家 TR:noFunc
+			CountryCode:  "",                     // 国家代码 TR:noFunc
+			DlSpeed:      peerInfo.DownloadSpeed, // 下载速度（字节/秒）
+			Downloaded:   peerInfo.Downloaded,    // 已下载数据量（字节） TR:noFunc 代理统计
+			Files:        "",                     // 文件信息 TR:noFunc
+			Flags:        flags,                  // 标志信息
+			FlagsDesc:    "",                     // 标志描述 TR:noFunc
+			Ip:           peerInfo.Ip,            // IP 地址
+			PeerIdClient: peerInfo.ClientName,    // 客户端的 Peer ID TR:noFunc 代理统计
+			Port:         peerInfo.Port,          // 端口号
+			Progress:     peerInfo.Progress,      // 进度（0-100%）
+			Relevance:    0,                      // 相关性 TR:noFunc
+			Shadowbanned: false,                  // 是否被影子禁用 TR:noFunc
+			UpSpeed:      peerInfo.UploadSpeed,   // 上传速度（字节/秒）
+			Uploaded:     peerInfo.Uploaded,      // 已上传数据量（字节） TR:noFunc 代理统计
 			// 没有验证Uploaded是否可以计算 -> int64(float64(*trt.TotalSize) * peer.Progress)
 		}
 	}
@@ -337,7 +337,7 @@ func (uc *TorrentUsecase) UpPeerData(ctx context.Context) (err error) {
 					Uploaded:      0,
 				}
 			}
-			peerInfo.Progress = float32(peer.Progress)
+			peerInfo.Progress = peer.Progress
 			peerInfo.DownloadSpeed = peer.RateToClient
 			peerInfo.UploadSpeed = peer.RateToPeer
 			peerInfo.Downloaded = peerInfo.Downloaded + intervalDownloaded
