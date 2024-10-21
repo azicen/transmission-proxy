@@ -26,7 +26,7 @@ import (
 var ProviderSet = wire.NewSet(NewInfra, NewAppDao, NewTorrentDao)
 
 // PeerCacheSize Peer缓存大小
-var PeerCacheSize = 1048576 // 1M内存
+const PeerCacheSize = 1 << 20 // 1M内存
 
 var (
 	BanIPV4SetName = "trp_black_ipv4"
@@ -254,9 +254,9 @@ func NewInfra(bootstrap *conf.Bootstrap, logger log.Logger) (*Infra, func(), err
 
 	// 创建缓存
 	ristrettoCache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 50000,   // 缓存数量
-		MaxCost:     1 << 20, // 最大缓存容量(字节, 1M内存)
-		BufferItems: 64,      // number of keys per Get buffer.
+		NumCounters: 50000,         // 缓存数量
+		MaxCost:     PeerCacheSize, // 最大缓存容量(字节, 1M内存)
+		BufferItems: 64,            // number of keys per Get buffer.
 	})
 	if err != nil {
 		return nil, nil, err

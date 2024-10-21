@@ -29,14 +29,14 @@ func NewTorrentService(uc *domain.TorrentUsecase) *TorrentService {
 func (s *TorrentService) GetInfo(ctx context.Context, req *pb.GetInfoRequest) (*httpbody.HttpBody, error) {
 	filter := domain.TorrentFilter{
 		Status: col.None[string](),
-		Tag:    col.None[string](),
+		Label:  col.None[string](),
 		Hashes: col.None[[]string](),
 	}
 	if req.GetFilter() != "" {
 		filter.Status = col.Some(req.GetFilter())
 	}
 	if req.GetTag() != "" {
-		filter.Tag = col.Some(req.GetTag())
+		filter.Label = col.Some(req.GetTag())
 	}
 	if req.GetHashes() != "" {
 		hashes := strings.Split(req.GetHashes(), "|")
@@ -52,6 +52,7 @@ func (s *TorrentService) GetInfo(ctx context.Context, req *pb.GetInfoRequest) (*
 		return &httpbody.HttpBody{Data: make([]byte, 0)}, nil
 	}
 
+	// 获取编解码器并编码json, qb需要返回一个纯数组`[{xxx},{xxx},...]`
 	json, err := encoding.GetCodec("json").Marshal(qbTorrents.Value())
 	if err != nil {
 		return &httpbody.HttpBody{Data: make([]byte, 0)}, nil

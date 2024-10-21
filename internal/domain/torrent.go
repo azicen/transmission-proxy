@@ -596,14 +596,14 @@ func filterTorrent(torrents []transmissionrpc.Torrent, filter TorrentFilter) []t
 	}
 
 	// 标签筛选
-	if filter.Tag.HasValue() {
+	if filter.Label.HasValue() {
 		tmpTorrents := make([]transmissionrpc.Torrent, 0, len(torrents))
 		for _, torrent := range torrents {
 			// 有标签
 			if len(torrent.Labels) == 0 {
 				continue
 			}
-			if contains(torrent.Labels, filter.Tag.Value()) {
+			if contains(torrent.Labels, filter.Label.Value()) {
 				tmpTorrents = append(tmpTorrents, torrent)
 			}
 		}
