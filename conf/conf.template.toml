@@ -1,6 +1,7 @@
 [service]
 # 日志等级
-log_level = "${LOG_LEVEL:DEBUG}"
+# 可选值: DEBUG, INFO, WARN, ERROR, FATAL
+log_level = "INFO"
 
 [trigger.http]
 host = "0.0.0.0"
@@ -8,11 +9,21 @@ port = 8000
 timeout = "5s"
 
 [infra.tr]
+# Transmission RPC URL
+# Example: http://user:password@tr_rpc_host:port/transmission/rpc
 rpc_url = "http://admin:admin@localhost:9091/transmission/rpc"
+# 刷新tr数据的时间间隔
 request_interval = "5s"
-ban_whitelist = []
-transfer = []
-sub_transfer = ""
+# 添加以下 transfer 到新的种子
+# 换行符间隔
+transfer = """
+https://btn-prod.ghostchu-services.top/tracker/announce
+http://tracker.opentrackr.org:1337/announce
+"""
+# 自定义订阅列表
+sub_transfer = "https://cf.trackerslist.com/http.txt"
+# 添加种子时添加指定标签
+add_torrent_label = "trproxy"
 
 [infra.database]
 path = "./data/sqlite.db"

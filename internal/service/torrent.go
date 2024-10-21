@@ -2,15 +2,16 @@ package service
 
 import (
 	"context"
-	"github.com/go-kratos/kratos/v2/encoding"
 	"strings"
 
 	pb "transmission-proxy/api/v2"
 	"transmission-proxy/internal/domain"
 	"transmission-proxy/internal/errors"
 
+	"github.com/go-kratos/kratos/v2/encoding"
 	col "github.com/noxiouz/golang-generics-util/collection"
 	"google.golang.org/genproto/googleapis/api/httpbody"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type TorrentService struct {
@@ -23,6 +24,44 @@ func NewTorrentService(uc *domain.TorrentUsecase) *TorrentService {
 	return &TorrentService{
 		uc: uc,
 	}
+}
+
+// Add 添加种子
+func (s *TorrentService) Add(ctx context.Context, req *pb.AddRequest) (res *emptypb.Empty, err error) {
+	res = &emptypb.Empty{}
+	urls := strings.Split(req.Urls, "\n")
+	torrents := make([]*domain.Torrent, 0, len(urls))
+	for _, url := range urls {
+		torrent := &domain.Torrent{
+			URL:    url,
+			Path:   col.None[string](),
+			Labels: col.None[[]string](),
+			Cookie: col.None[string](),
+			Paused: false,
+		}
+		if req.GetSavepath() != "" {
+			torrent.Path = col.Some(req.GetSavepath())
+		}
+		if req.GetCookie() != "" {
+			torrent.Cookie = col.Some(req.GetCookie())
+		}
+		var labels []string
+		if req.GetTags() != "" {
+			labels = strings.Split(req.GetTags(), ",")
+		}
+		if len(labels) > 0 {
+			torrent.Labels = col.Some(labels)
+		}
+		if req.GetPaused() != "" {
+			if strings.TrimSpace(req.GetPaused()) == "true" {
+				torrent.Paused = true
+			}
+		}
+		torrents = append(torrents, torrent)
+	}
+
+	err = s.uc.Add(ctx, torrents)
+	return
 }
 
 // GetInfo 获取种子列表

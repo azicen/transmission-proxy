@@ -11,6 +11,15 @@ option go_package = "transmission-proxy/api/v2;v2";
 
 service Torrent {
 
+  // 添加种子。
+  // https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#add-new-torrent
+  rpc Add(AddRequest) returns (google.protobuf.Empty) {
+    option(google.api.http) = {
+      post: "/api/v2/torrents/add"
+      body: "*"
+    };
+  }
+
   // 获取种子列表。
   // https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#get-torrent-list
   rpc GetInfo(GetInfoRequest) returns (google.api.HttpBody) {
@@ -26,6 +35,57 @@ service Torrent {
       get: "/api/v2/torrents/properties"
     };
   }
+}
+
+// 添加种子请求
+message AddRequest {
+  // URL 以换行符分隔
+  string urls = 1;
+
+  // 下载文件夹
+  optional string savepath = 2;
+
+  // 发送 Cookie 以下载 .torrent 文件
+  optional string cookie = 3;
+
+  // 种子的类别
+  optional string category = 4;
+
+  // torrent 的标签，用“,”分隔
+  optional string tags = 5;
+
+  // 跳过哈希检查。可能的值为true、false（默认）
+  optional string skip_checking = 6;
+
+  // 在暂停状态下添加种子。可能的值为true、false（默认）
+  optional string paused = 7;
+
+  // 创建根文件夹。可能的值为true、false、unset未设置（默认）
+  optional string root_folder = 8;
+
+  // 重命名种子
+  optional string rename = 9;
+
+  // 设置种子上传速度限制。单位为字节/秒
+  optional int64 upLimit = 10;
+
+  // 设置种子下载速度限制。单位为字节/秒
+  optional int64 dlLimit = 11;
+
+  // 设置种子共享比例限制
+  optional fixed64 ratioLimit = 12;
+
+  // 设置种子种子时间限制。单位为分钟
+  optional int64 seedingTimeLimit = 13;
+
+  // 是否应使用自动种子管理
+  optional bool autoTMM = 14;
+
+  // 启用顺序下载。可能的值为true、false（默认）
+  optional string sequentialDownload = 15;
+
+  // 优先下载最后一块。可能的值为true、false（默认）
+  optional string firstLastPiecePrio = 16;
 }
 
 // 获取种子列表请求

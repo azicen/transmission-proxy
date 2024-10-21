@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	pb "transmission-proxy/api/v2"
+	"transmission-proxy/conf"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/hekmon/transmissionrpc/v3"
@@ -39,9 +40,17 @@ type Peer struct {
 	Flags         string  // 标志信息
 }
 
+type Torrent struct {
+	URL    string               // 种子url
+	Path   col.Option[string]   // 种子保存路径
+	Labels col.Option[[]string] // 种子tag
+	Cookie col.Option[string]   // 发送 Cookie 以下载 .torrent 文件
+	Paused bool                 // 在暂停状态下添加种子
+}
+
 type TorrentFilter struct {
 	Status col.Option[string]
-	Tag    col.Option[string]
+	Label  col.Option[string]
 	Hashes col.Option[[]string]
 }
 
@@ -62,6 +71,9 @@ type HistoricalStatistics struct {
 
 // TorrentRepo .
 type TorrentRepo interface {
+
+	// Add 添加种子
+	Add(ctx context.Context, torrents []*Torrent) error
 
 	// GetTorrent 获取种子
 	GetTorrent(ctx context.Context, hash string) (col.Option[transmissionrpc.Torrent], error)
@@ -91,17 +103,19 @@ type TorrentUsecase struct {
 	log  *log.Helper
 
 	statistics Statistics
+
+	// torrentLabel 默认添加到的标签
+	torrentLabel col.Option[string]
 }
 
 // NewTorrentUsecase .
-func NewTorrentUsecase(dao TorrentRepo, logger log.Logger) *TorrentUsecase {
-
+func NewTorrentUsecase(bootstrap *conf.Bootstrap, dao TorrentRepo, logger log.Logger) *TorrentUsecase {
 	statistics, err := dao.GetHistoricalStatistics()
 	if err != nil {
 		panic(err)
 	}
 
-	return &TorrentUsecase{
+	uc := &TorrentUsecase{
 		repo: dao,
 		log:  log.NewHelper(logger),
 
@@ -113,7 +127,33 @@ func NewTorrentUsecase(dao TorrentRepo, logger log.Logger) *TorrentUsecase {
 			TotalUploadedSession:   0,
 			UploadSpeed:            0,
 		},
+		torrentLabel: col.None[string](),
 	}
+
+	torrentLabel := bootstrap.GetInfra().GetTr().GetAddTorrentLabel()
+	if torrentLabel != "" {
+		uc.torrentLabel = col.Some(torrentLabel)
+	}
+
+	return uc
+}
+
+// Add 添加种子
+func (uc *TorrentUsecase) Add(ctx context.Context, torrents []*Torrent) (err error) {
+	if uc.torrentLabel.HasValue() {
+		for _, torrent := range torrents {
+			var labels []string
+			if torrent.Labels.HasValue() {
+				labels = torrent.Labels.Value()
+			} else {
+				labels = make([]string, 0, 1)
+			}
+			labels = append(labels, uc.torrentLabel.Value())
+			torrent.Labels = col.Some(labels)
+		}
+	}
+	err = uc.repo.Add(ctx, torrents)
+	return
 }
 
 // GetTorrentList 获取种子列表

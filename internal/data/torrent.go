@@ -52,13 +52,39 @@ func NewTorrentDao(infra *Infra, logger log.Logger) (domain.TorrentRepo, error) 
 	}, nil
 }
 
+func (d *torrentDao) Add(ctx context.Context, torrents []*domain.Torrent) (err error) {
+	for _, torrent := range torrents {
+		trt := transmissionrpc.TorrentAddPayload{
+			Filename: &torrent.URL,
+			Paused:   &torrent.Paused,
+		}
+		if torrent.Path.HasValue() {
+			path := torrent.Path.Value()
+			trt.DownloadDir = &path
+		}
+		if torrent.Labels.HasValue() {
+			trt.Labels = torrent.Labels.Value()
+		}
+		if torrent.Cookie.HasValue() {
+			cookies := torrent.Cookie.Value()
+			trt.Cookies = &cookies
+		}
+
+		_, err := d.infra.TR.TorrentAdd(ctx, trt)
+		if err != nil {
+			d.log.Errorf("添加种子时出现错误 torrent=%s err=%v", torrent.URL, err)
+		}
+	}
+	return
+}
+
 func (d *torrentDao) GetTorrent(ctx context.Context, hash string) (col.Option[transmissionrpc.Torrent], error) {
 	torrents, err := d.infra.TR.TorrentGetAllForHashes(ctx, []string{hash})
 	if err != nil {
 		return nil, err
 	}
 	if len(torrents) == 0 {
-		return nil, errors.ResourceNotExist("Torrent hash was not found")
+		return nil, errors.ResourceNotExist("未找到Torrent")
 	}
 	trt := torrents[0]
 	return col.Some(trt), nil

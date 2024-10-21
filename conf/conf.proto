@@ -12,7 +12,9 @@ message Bootstrap {
 }
 
 message Service {
-  string log_level = 1; // 日志等级
+  // 日志等级
+  // 可选值: DEBUG, INFO, WARN, ERROR, FATAL
+  string log_level = 1;
 }
 
 message Trigger {
@@ -27,20 +29,21 @@ message Trigger {
 message Infra {
   message TR {
     // Transmission RPC URL
-    // Example: http://user:password@127.0.0.1:9091/transmission/rpc
+    // Example: http://user:password@tr_rpc_host:port/transmission/rpc
     string rpc_url = 1;
 
     // 刷新tr数据的时间间隔
     google.protobuf.Duration request_interval = 2;
 
-    // ban ip 白名单
-    repeated string ban_whitelist = 3;
-
     // 添加以下 transfer 到新的种子
-    repeated string transfer = 4;
+    // 换行符间隔
+    string transfer = 4;
 
     // 自定义订阅列表
     string sub_transfer = 5;
+
+    // 添加种子时添加指定标签
+    string add_torrent_label = 6;
   }
 
   message Database {
