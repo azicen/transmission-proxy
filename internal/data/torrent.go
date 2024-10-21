@@ -19,8 +19,8 @@ var (
 
 var schema = `
 CREATE TABLE IF NOT EXISTS properties (
-	id INTEGER PRIMARY KEY AUTOINCREMENT, -- 自增主键
-    key VARCHAR(255) NOT NULL,            -- 字符串，最大长度255
+	id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    key   VARCHAR UNIQUE NOT NULL,
     value TEXT
 );
 INSERT OR IGNORE INTO properties (key, value) VALUES ('TotalDownloaded', '0');
@@ -41,7 +41,6 @@ type torrentDao struct {
 
 // NewTorrentDao .
 func NewTorrentDao(infra *Infra, logger log.Logger) (domain.TorrentRepo, error) {
-
 	_, err := infra.DB.Exec(schema)
 	if err != nil {
 		return nil, err
