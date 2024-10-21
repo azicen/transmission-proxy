@@ -30,6 +30,7 @@ func NewScheduledTask(uc *domain.TorrentUsecase, logger log.Logger) (
 	}
 
 	task.RunStatisticsTask()
+	task.RunSaveHistoricalTask()
 
 	return task, cancel
 }
@@ -63,8 +64,8 @@ func (t *ScheduledTask) RunStatisticsTask() {
 func (t *ScheduledTask) RunSaveHistoricalTask() {
 	ctx, cancel := context.WithCancel(t.ctx)
 	_ = cancel
-	//ticker := time.NewTicker(t.d)
-	ticker := time.NewTicker(t.d)
+	// 10分钟 写盘一次
+	ticker := time.NewTicker(10 * time.Minute)
 	go func() {
 		defer ticker.Stop()
 		for {
