@@ -12,7 +12,7 @@ RUN apt update && \
 
 RUN GO111MODULE=on GOPROXY=$GOPROXY go install github.com/google/wire/cmd/wire@v0.6.0 && \
     GO111MODULE=on GOPROXY=$GOPROXY go install github.com/go-kratos/kratos/cmd/protoc-gen-go-http/v2@latest && \
-    GO111MODULE=on GOPROXY=$GOPROXY go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.5.4 && \
+    GO111MODULE=on GOPROXY=$GOPROXY go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.35.1 && \
     GO111MODULE=on GOPROXY=$GOPROXY go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 
 RUN go run ./cmd/tool generate_proto.go api && \
