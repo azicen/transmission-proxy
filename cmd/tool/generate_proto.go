@@ -1,6 +1,6 @@
 // generate_proto.go 构建proto相关内容
 
-//go:generate go run generate_proto.go all
+//go:generate go run generate_proto.go build
 package main
 
 import (
@@ -119,6 +119,9 @@ func main() {
 		generateProtoConfig()
 	case "openapi":
 		generateProtoOpenAPI()
+	case "build":
+		generateProtoAPI()
+		generateProtoConfig()
 	case "all":
 		generateProtoAPI()
 		generateProtoConfig()

@@ -1,4 +1,4 @@
-name: 构建容器镜像
+name: 构建容器镜像快照
 
 on:
   workflow_dispatch: # 手动触发
