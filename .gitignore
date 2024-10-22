@@ -28,9 +28,6 @@ go.work.sum
 *.swagger.json
 openapi.yaml
 
-# Dependency Injection
-wire_gen.go
-
 # Development Environment file
 .env
 bin/
