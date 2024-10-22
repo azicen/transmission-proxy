@@ -30,7 +30,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&flagConf, "conf", "./data/conf", "config path, eg: -conf config.toml")
+	flag.StringVar(&flagConf, "conf", "./data", "config path, eg: -conf config.toml")
 }
 
 func newApp(logger log.Logger, hs *http.Server, _ *trigger.ScheduledTask) *kratos.App {
@@ -64,7 +64,7 @@ func main() {
 		"caller", log.Caller(5),
 	)
 	logger = log.NewFilter(logger, log.FilterLevel(logLevel))
-	logger.Log(log.LevelInfo, "guid", guid, "version", Version)
+	log.NewHelper(logger).Debugw("guid", guid, "version", Version)
 
 	app, cleanup, err := initApp(bc, logger)
 	if err != nil {

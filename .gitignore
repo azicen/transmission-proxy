@@ -33,7 +33,8 @@ wire_gen.go
 
 # Development Environment file
 .env
-data/conf
+bin/
+data/conf.toml
 data/sqlite.db
 
 # IDE
