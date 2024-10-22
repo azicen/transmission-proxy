@@ -2,7 +2,7 @@ FROM --platform=$BUILDPLATFORM golang:1.23.2 AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
-ARG GOPROXY=https://goproxy.io
+ARG GOPROXY=https://proxy.golang.org,direct
 
 COPY . /src
 WORKDIR /src
@@ -15,8 +15,8 @@ RUN GO111MODULE=on GOPROXY=$GOPROXY go install github.com/google/wire/cmd/wire@v
     GO111MODULE=on GOPROXY=$GOPROXY go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.35.1 && \
     GO111MODULE=on GOPROXY=$GOPROXY go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 
-RUN go run ./cmd/tool generate_proto.go api && \
-    go run ./cmd/tool generate_proto.go conf && \
+RUN go run ./cmd/tool/generate_proto.go api && \
+    go run ./cmd/tool/generate_proto.go conf && \
     go generate transmission-proxy/cmd
 
 RUN mkdir -p /src/bin/
