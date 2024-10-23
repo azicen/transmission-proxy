@@ -11,7 +11,7 @@ timeout = "5s"
 [infra.tr]
 # Transmission RPC URL
 # Example: http://user:password@tr_rpc_host:port/transmission/rpc
-rpc_url = "http://admin:admin@localhost:9091/transmission/rpc"
+rpc_url = "http://${USER:admin}:${PASS:admin}@localhost:9091/transmission/rpc"
 # 刷新tr数据的时间间隔
 request_interval = "5s"
 # 添加以下 transfer 到新的种子
