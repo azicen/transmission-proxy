@@ -101,20 +101,25 @@ func (t *ScheduledTask) RunUpTrackerTask() {
 	_ = cancel
 	// 每日刷新一次
 	ticker := time.NewTicker(24 * time.Hour)
+
+	task := func() {
+		taskCtx, taskCancel := context.WithCancel(ctx)
+		defer taskCancel()
+		t.log.Debugf("执行更新Tracker任务")
+		err := t.uc.UpTrackerList(taskCtx)
+		if err != nil {
+			t.log.Errorw("err", err)
+		}
+	}
+
+	task()
+
 	go func() {
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
-				go func() {
-					taskCtx, taskCancel := context.WithCancel(ctx)
-					defer taskCancel()
-					t.log.Debugf("执行更新Tracker任务")
-					err := t.uc.UpTrackerList(taskCtx)
-					if err != nil {
-						t.log.Errorw("err", err)
-					}
-				}()
+				go task()
 				break
 
 			case <-ctx.Done():

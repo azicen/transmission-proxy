@@ -235,6 +235,7 @@ func (uc *TorrentUsecase) Add(ctx context.Context, torrents []*Torrent) (err err
 			}
 			labels = append(labels, uc.torrentLabel.Value())
 			torrent.Labels = col.Some(labels)
+			torrent.Trackers = uc.trackers
 		}
 	}
 	err = uc.repo.AddTorrent(ctx, torrents)
