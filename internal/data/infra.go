@@ -19,7 +19,7 @@ import (
 	"github.com/google/wire"
 	"github.com/hekmon/transmissionrpc/v3"
 	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 // ProviderSet is service providers.
@@ -189,7 +189,7 @@ func NewInfra(bootstrap *conf.Bootstrap, logger log.Logger) (*Infra, func(), err
 	}
 
 	ll.Debugf("读取数据库文件: %s", dbPath)
-	db, err := sqlx.Connect("sqlite3", dbPath)
+	db, err := sqlx.Connect("sqlite", dbPath)
 	if err != nil {
 		return nil, nil, err
 	}
