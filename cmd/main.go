@@ -30,7 +30,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&flagConf, "conf", "./conf", "config path, eg: -conf config.toml")
+	flag.StringVar(&flagConf, "conf", "./conf/conf.toml", "config path, eg: -conf conf.toml")
 }
 
 func newApp(logger log.Logger, hs *http.Server, _ *trigger.ScheduledTask) *kratos.App {

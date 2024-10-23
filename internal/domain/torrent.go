@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 
 	pb "transmission-proxy/api/v2"
@@ -41,11 +42,12 @@ type Peer struct {
 }
 
 type Torrent struct {
-	URL    string               // 种子url
-	Path   col.Option[string]   // 种子保存路径
-	Labels col.Option[[]string] // 种子tag
-	Cookie col.Option[string]   // 发送 Cookie 以下载 .torrent 文件
-	Paused bool                 // 在暂停状态下添加种子
+	URL      string               // 种子url
+	Path     col.Option[string]   // 种子保存路径
+	Labels   col.Option[[]string] // 种子tag
+	Cookie   col.Option[string]   // 发送 Cookie 以下载 .torrent 文件
+	Paused   bool                 // 在暂停状态下添加种子
+	Trackers []string             // 添加到种子的Tracker列表
 }
 
 type TorrentFilter struct {
@@ -72,8 +74,14 @@ type HistoricalStatistics struct {
 // TorrentRepo .
 type TorrentRepo interface {
 
-	// Add 添加种子
-	Add(ctx context.Context, torrents []*Torrent) error
+	// GetResponseLine 安行获取指定URL内容
+	GetResponseLine(_ context.Context, trackerListURL string) ([]string, error)
+
+	// AddTorrent 添加种子
+	AddTorrent(ctx context.Context, torrents []*Torrent) error
+
+	// UpTracker 更新Tracker
+	UpTracker(ctx context.Context, ids []int64, trackers []string) (err error)
 
 	// GetTorrent 获取种子
 	GetTorrent(ctx context.Context, hash string) (col.Option[transmissionrpc.Torrent], error)
@@ -106,10 +114,36 @@ type TorrentUsecase struct {
 
 	// torrentLabel 默认添加到的标签
 	torrentLabel col.Option[string]
+	// trackers 所有需要使用的Transfer列表
+	trackers []string
+	// defaultTrackers 配置文件中默认添加的Tracker
+	defaultTrackers []string
+	// subTransferURL 订阅的Transfer列表URL
+	subTransferURL string
 }
 
 // NewTorrentUsecase .
 func NewTorrentUsecase(bootstrap *conf.Bootstrap, dao TorrentRepo, logger log.Logger) *TorrentUsecase {
+	// 初始化Transfer列表
+	config := bootstrap.GetInfra().GetTr()
+	subTransferURL := config.GetSubTransfer()
+	defaultTrackers := strings.Split(config.GetTransfer(), "\n")
+	trackers := make(map[string]struct{}, len(defaultTrackers))
+	for _, tracker := range defaultTrackers {
+		// 检查url
+		urlStr := strings.TrimSpace(tracker)
+		if urlStr != "" {
+			trackerURL, err := url.ParseRequestURI(urlStr)
+			if err == nil {
+				trackers[trackerURL.String()] = struct{}{}
+			}
+		}
+	}
+	defaultTrackers = make([]string, 0, len(defaultTrackers))
+	for urlStr := range trackers {
+		defaultTrackers = append(defaultTrackers, urlStr)
+	}
+
 	statistics, err := dao.GetHistoricalStatistics()
 	if err != nil {
 		panic(err)
@@ -127,7 +161,9 @@ func NewTorrentUsecase(bootstrap *conf.Bootstrap, dao TorrentRepo, logger log.Lo
 			TotalUploadedSession:   0,
 			UploadSpeed:            0,
 		},
-		torrentLabel: col.None[string](),
+		torrentLabel:    col.None[string](),
+		defaultTrackers: defaultTrackers,
+		subTransferURL:  subTransferURL,
 	}
 
 	torrentLabel := bootstrap.GetInfra().GetTr().GetAddTorrentLabel()
@@ -136,6 +172,55 @@ func NewTorrentUsecase(bootstrap *conf.Bootstrap, dao TorrentRepo, logger log.Lo
 	}
 
 	return uc
+}
+
+// UpTrackerList 更新Tracker列表
+func (uc *TorrentUsecase) UpTrackerList(ctx context.Context) (err error) {
+	trackers := make(map[string]struct{}, len(uc.trackers))
+	for _, tracker := range uc.defaultTrackers {
+		trackers[tracker] = struct{}{}
+	}
+
+	lines, err := uc.repo.GetResponseLine(ctx, uc.subTransferURL)
+	if err != nil {
+		return
+	}
+	for _, line := range lines {
+		// 检查url
+		urlStr := strings.TrimSpace(line)
+		if urlStr != "" {
+			trackerURL, err := url.ParseRequestURI(urlStr)
+			if err == nil {
+				trackers[trackerURL.String()] = struct{}{}
+			}
+		}
+	}
+
+	uc.trackers = make([]string, 0, len(trackers))
+	for tracker := range trackers {
+		uc.trackers = append(uc.trackers, tracker)
+	}
+	return
+}
+
+// UpTorrentTrackerList 更新种子的Tracker
+func (uc *TorrentUsecase) UpTorrentTrackerList(ctx context.Context) (err error) {
+	torrentsOption, err := uc.repo.GetTorrentAll(ctx)
+	if err != nil {
+		return
+	}
+	if !torrentsOption.HasValue() {
+		return
+	}
+	torrents := torrentsOption.Value()
+
+	ids := make([]int64, 0, len(torrents))
+	for _, trt := range torrents {
+		ids = append(ids, *trt.ID)
+	}
+
+	err = uc.repo.UpTracker(ctx, ids, uc.trackers)
+	return
 }
 
 // Add 添加种子
@@ -152,7 +237,7 @@ func (uc *TorrentUsecase) Add(ctx context.Context, torrents []*Torrent) (err err
 			torrent.Labels = col.Some(labels)
 		}
 	}
-	err = uc.repo.Add(ctx, torrents)
+	err = uc.repo.AddTorrent(ctx, torrents)
 	return
 }
 

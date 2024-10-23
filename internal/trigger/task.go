@@ -31,12 +31,14 @@ func NewScheduledTask(uc *domain.TorrentUsecase, logger log.Logger) (
 
 	task.RunStatisticsTask()
 	task.RunSaveHistoricalTask()
+	task.RunUpTrackerTask()
 
 	return task, cancel
 }
 
 // RunStatisticsTask 统计任务
 func (t *ScheduledTask) RunStatisticsTask() {
+	t.log.Debugf("启动更新状态任务")
 	ctx, cancel := context.WithCancel(t.ctx)
 	_ = cancel
 	ticker := time.NewTicker(t.d)
@@ -45,7 +47,7 @@ func (t *ScheduledTask) RunStatisticsTask() {
 		for {
 			select {
 			case <-ticker.C:
-				t.log.Debugf("执行定时任务")
+				t.log.Debugf("执行更新状态任务")
 				err := t.uc.UpPeerData(t.ctx)
 				if err != nil {
 					t.log.Errorw("err", err)
@@ -53,7 +55,7 @@ func (t *ScheduledTask) RunStatisticsTask() {
 				break
 
 			case <-ctx.Done():
-				t.log.Debugf("定时任务结束: %v", t.ctx.Err())
+				t.log.Debugf("更新状态任务结束: %v", t.ctx.Err())
 				return
 			}
 		}
@@ -62,6 +64,7 @@ func (t *ScheduledTask) RunStatisticsTask() {
 
 // RunSaveHistoricalTask 保存历史统计任务
 func (t *ScheduledTask) RunSaveHistoricalTask() {
+	t.log.Debugf("启动定时保存任务")
 	ctx, cancel := context.WithCancel(t.ctx)
 	_ = cancel
 	// 10分钟 写盘一次
@@ -71,7 +74,7 @@ func (t *ScheduledTask) RunSaveHistoricalTask() {
 		for {
 			select {
 			case <-ticker.C:
-				t.log.Debugf("执行定时保存")
+				t.log.Debugf("执行定时保存任务")
 				err := t.uc.SaveStatistics()
 				if err != nil {
 					t.log.Errorw("err", err)
@@ -84,7 +87,38 @@ func (t *ScheduledTask) RunSaveHistoricalTask() {
 				if err != nil {
 					t.log.Errorw("err", err)
 				}
-				t.log.Debugf("定时保存结束: %v", t.ctx.Err())
+				t.log.Debugf("定时保存任务结束: %v", t.ctx.Err())
+				return
+			}
+		}
+	}()
+}
+
+// RunUpTrackerTask 更新Tracker任务
+func (t *ScheduledTask) RunUpTrackerTask() {
+	t.log.Debugf("启动更新Tracker任务")
+	ctx, cancel := context.WithCancel(t.ctx)
+	_ = cancel
+	// 每日刷新一次
+	ticker := time.NewTicker(24 * time.Hour)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				go func() {
+					taskCtx, taskCancel := context.WithCancel(ctx)
+					defer taskCancel()
+					t.log.Debugf("执行更新Tracker任务")
+					err := t.uc.UpTrackerList(taskCtx)
+					if err != nil {
+						t.log.Errorw("err", err)
+					}
+				}()
+				break
+
+			case <-ctx.Done():
+				t.log.Debugf("更新Tracker任务结束: %v", t.ctx.Err())
 				return
 			}
 		}
