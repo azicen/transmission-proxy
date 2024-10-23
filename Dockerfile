@@ -38,6 +38,8 @@ RUN apk --no-cache add \
 COPY root/ /
 
 COPY --from=builder /src/bin/app /usr/sbin/trproxy
-RUN chmod 755 /usr/sbin/trproxy
+RUN chmod 755 \
+    /usr/sbin/trproxy \
+    /etc/s6-overlay/s6-rc.d/init-trproxy-config/run
 
 EXPOSE 8000

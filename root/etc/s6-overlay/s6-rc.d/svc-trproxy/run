@@ -2,4 +2,4 @@
 
 cd /config/trproxy
 
-exec s6-setuidgid abc /usr/sbin/trproxy
+exec s6-setuidgid abc /usr/sbin/trproxy -conf /config/trproxy/conf.toml

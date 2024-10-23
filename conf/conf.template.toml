@@ -1,7 +1,7 @@
 [service]
 # 日志等级
 # 可选值: DEBUG, INFO, WARN, ERROR, FATAL
-log_level = "INFO"
+log_level = "WARN"
 
 [trigger.http]
 host = "0.0.0.0"
@@ -26,4 +26,4 @@ sub_transfer = "https://cf.trackerslist.com/http.txt"
 add_torrent_label = "trproxy"
 
 [infra.database]
-path = "./data/sqlite.db"
+path = "./sqlite.db"
