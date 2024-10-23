@@ -1,5 +1,7 @@
 #!/usr/bin/with-contenv bash
 
+mkdir -p /config/trproxy
+
 # permissions
 chown abc:abc -R /config/trproxy
 

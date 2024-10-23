@@ -2,5 +2,4 @@
 
 cd /config/trproxy
 
-exec s6-setuidgid abc \
-  /bin/bash /usr/sbin/trproxy
+exec s6-setuidgid abc /usr/sbin/trproxy

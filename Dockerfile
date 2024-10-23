@@ -26,8 +26,16 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH GOPROXY=$GOPROXY go build \
 
 FROM linuxserver/transmission:4.0.6
 
-RUN apk --no-cache add nftables && \
-    rm -rf /var/cache/apk/*
+RUN apk --no-cache add \
+        libcap \
+        nftables && \
+    rm -rf \
+        /tmp/* \
+        /var/cache/apk/* \
+        $HOME/.cache
+
+# copy local files
+COPY root/ /
 
 COPY --from=builder /src/bin/app /usr/sbin/trproxy
 RUN chmod 755 /usr/sbin/trproxy
