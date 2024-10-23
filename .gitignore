@@ -31,7 +31,7 @@ openapi.yaml
 # Development Environment file
 .env
 bin/
-data/conf.toml
+data/conf
 data/sqlite.db
 
 # IDE
