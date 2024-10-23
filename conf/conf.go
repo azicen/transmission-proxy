@@ -18,19 +18,10 @@ const (
 var TemplateFS embed.FS
 
 // LoadConf 读取配置文件
-func LoadConf(dir string, s ...config.Source) (*Bootstrap, func(), error) {
-	confFile := filepath.Join(dir, "conf.toml")
-	// 检查文件是否存在
-	if _, err := os.Stat(confFile); os.IsNotExist(err) {
-		err := CopyFS(TemplateFS, TemplateName, confFile)
-		if err != nil {
-			return nil, func() {}, err
-		}
-	}
-
+func LoadConf(path string, s ...config.Source) (*Bootstrap, func(), error) {
 	source := []config.Source{
 		env.NewSource("TRP_"),
-		file.NewSource(dir),
+		file.NewSource(path),
 	}
 	source = append(source, s...)
 	c := config.New(
