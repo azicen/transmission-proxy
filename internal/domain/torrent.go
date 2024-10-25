@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
+	"github.com/hekmon/cunits/v2"
 	"github.com/hekmon/transmissionrpc/v3"
 	col "github.com/noxiouz/golang-generics-util/collection"
 )
@@ -311,7 +312,7 @@ func (uc *TorrentUsecase) GetTorrentProperties(ctx context.Context, hash string)
 
 	pieceSize := int64(-1)
 	if trt.PieceSize != nil {
-		pieceSize = int64(*trt.PieceSize)
+		pieceSize = BitsToBytes(trt.PieceSize)
 	}
 
 	qbt := &pb.GetPropertiesResponse{
@@ -339,18 +340,18 @@ func (uc *TorrentUsecase) GetTorrentProperties(ctx context.Context, hash string)
 		DlSpeed:            *trt.RateDownload,         // 种子下载速度（字节/秒）
 		// 种子的预计完成时间（秒）
 		Eta:        eta,
-		LastSeen:   trt.DoneDate.Unix(),   // 最后看到的完整日期（Unix 时间戳） TR:noFunc
-		Peers:      *trt.PeersConnected,   // 连接到的对等点数量
-		PeersTotal: int64(len(trt.Peers)), // 群体中的同伴数量
-		PiecesHave: int32(len(trt.Files)), // 拥有件数 TR:noFunc
-		PiecesNum:  int32(len(trt.Files)), // 种子文件的数量
-		Reannounce: 300,                   // 距离下一次广播的秒数 TR:noFunc
-		Seeds:      *trt.PeersSendingToUs, // 连接到的种子数量
-		SeedsTotal: int64(len(trt.Peers)), // 群体中的种子数量 TR:noFunc
-		TotalSize:  int64(*trt.TotalSize), // 种子总大小（字节）
-		UpSpeedAvg: *trt.RateUpload,       // 种子平均上传速度（字节/秒） TR:noFunc
-		UpSpeed:    *trt.RateUpload,       // 种子上传速度（字节/秒）
-		IsPrivate:  *trt.IsPrivate,        // 如果 torrent 来自私人追踪器，则为 True
+		LastSeen:   trt.DoneDate.Unix(),        // 最后看到的完整日期（Unix 时间戳） TR:noFunc
+		Peers:      *trt.PeersConnected,        // 连接到的对等点数量
+		PeersTotal: int64(len(trt.Peers)),      // 群体中的同伴数量
+		PiecesHave: int32(len(trt.Files)),      // 拥有件数 TR:noFunc
+		PiecesNum:  int32(len(trt.Files)),      // 种子文件的数量
+		Reannounce: 300,                        // 距离下一次广播的秒数 TR:noFunc
+		Seeds:      *trt.PeersSendingToUs,      // 连接到的种子数量
+		SeedsTotal: int64(len(trt.Peers)),      // 群体中的种子数量 TR:noFunc
+		TotalSize:  BitsToBytes(trt.TotalSize), // 种子总大小（字节）
+		UpSpeedAvg: *trt.RateUpload,            // 种子平均上传速度（字节/秒） TR:noFunc
+		UpSpeed:    *trt.RateUpload,            // 种子上传速度（字节/秒）
+		IsPrivate:  *trt.IsPrivate,             // 如果 torrent 来自私人追踪器，则为 True
 	}
 
 	return col.Some(qbt), nil
@@ -500,7 +501,7 @@ func (uc *TorrentUsecase) UpPeerData(ctx context.Context) (err error) {
 }
 
 func trTorrentToQBTorrent(trt transmissionrpc.Torrent) *pb.TorrentInfo {
-	totalSize := int64(*trt.TotalSize)
+	totalSize := BitsToBytes(trt.TotalSize)
 
 	// 种子的下载速度限制（字节/秒），-1 表示无限制
 	downloadLimit := int64(-1)
@@ -581,11 +582,11 @@ func trTorrentToQBTorrent(trt transmissionrpc.Torrent) *pb.TorrentInfo {
 		SeedingTime: int64(trt.TimeSeeding.Seconds()), // 种子完成后的做种时间（秒）
 		// 种子达到的最大做种时间限制（秒）。如果自动管理启用，则为 -2；未设置时默认为 -1
 		SeedingTimeLimit: int64(trt.SeedIdleLimit.Seconds()),
-		SeenComplete:     trt.DoneDate.Unix(),      // 种子上次完成的时间（Unix 时间戳）
-		SeqDl:            false,                    // 如果启用了顺序下载，则为 true TR:noFunc
-		Size:             int64(*trt.SizeWhenDone), // 已选文件的总大小（字节数）
-		State:            "",                       // 种子的状态 TODO
-		SuperSeeding:     false,                    // 如果启用了超级做种模式，则为 true TR:noFunc
+		SeenComplete:     trt.DoneDate.Unix(),           // 种子上次完成的时间（Unix 时间戳）
+		SeqDl:            false,                         // 如果启用了顺序下载，则为 true TR:noFunc
+		Size:             BitsToBytes(trt.SizeWhenDone), // 已选文件的总大小（字节数）
+		State:            "",                            // 种子的状态 TODO
+		SuperSeeding:     false,                         // 如果启用了超级做种模式，则为 true TR:noFunc
 		Tags:             tags,
 		// 种子的总活跃时间（秒） TR:下载时间+做种时间
 		TimeActive: int64(trt.TimeDownloading.Seconds()) + int64(trt.TimeSeeding.Seconds()),
@@ -810,4 +811,11 @@ func (uc *TorrentUsecase) GetTmpTorrentFile(ctx context.Context, filename string
 	}
 	data = dataOption.Value()
 	return
+}
+
+func BitsToBytes(bits *cunits.Bits) int64 {
+	if bits == nil {
+		return 0
+	}
+	return int64(*bits) / 8
 }
