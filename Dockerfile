@@ -27,6 +27,7 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH GOPROXY=$GOPROXY go build \
 FROM linuxserver/transmission:4.0.6
 
 RUN apk --no-cache add \
+        gcompat \
         libcap \
         nftables && \
     rm -rf \
