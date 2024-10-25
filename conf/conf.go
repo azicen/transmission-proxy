@@ -19,6 +19,14 @@ var TemplateFS embed.FS
 
 // LoadConf 读取配置文件
 func LoadConf(path string, s ...config.Source) (*Bootstrap, func(), error) {
+	// 检查文件是否存在
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		err := CopyFS(TemplateFS, TemplateName, path)
+		if err != nil {
+			return nil, func() {}, err
+		}
+	}
+
 	source := []config.Source{
 		env.NewSource("TRP_"),
 		file.NewSource(path),
