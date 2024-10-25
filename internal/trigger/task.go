@@ -30,10 +30,13 @@ func NewScheduledTask(uc *domain.TorrentUsecase, logger log.Logger) (
 	}
 
 	task.RunStatisticsTask()
-	task.RunSaveHistoricalTask()
+	saveHistoricalCancel := task.RunSaveHistoricalTask()
 	task.RunUpTrackerTask()
 
-	return task, cancel
+	return task, func() {
+		cancel()
+		saveHistoricalCancel()
+	}
 }
 
 // RunStatisticsTask 统计任务
@@ -63,10 +66,10 @@ func (t *ScheduledTask) RunStatisticsTask() {
 }
 
 // RunSaveHistoricalTask 保存历史统计任务
-func (t *ScheduledTask) RunSaveHistoricalTask() {
+func (t *ScheduledTask) RunSaveHistoricalTask() (cancel func()) {
 	t.log.Debugf("启动定时保存任务")
-	ctx, cancel := context.WithCancel(t.ctx)
-	_ = cancel
+	ctx, c := context.WithCancel(t.ctx)
+	_ = c
 	// 10分钟 写盘一次
 	ticker := time.NewTicker(10 * time.Minute)
 	go func() {
@@ -82,16 +85,20 @@ func (t *ScheduledTask) RunSaveHistoricalTask() {
 				break
 
 			case <-ctx.Done():
-				// 结束前再保存一次
-				err := t.uc.SaveStatistics()
-				if err != nil {
-					t.log.Errorw("err", err)
-				}
 				t.log.Debugf("定时保存任务结束: %v", t.ctx.Err())
 				return
 			}
 		}
 	}()
+
+	cancel = func() {
+		// 结束前再保存一次
+		err := t.uc.SaveStatistics()
+		if err != nil {
+			t.log.Errorw("err", err)
+		}
+	}
+	return
 }
 
 // RunUpTrackerTask 更新Tracker任务
