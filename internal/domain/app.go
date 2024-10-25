@@ -3,13 +3,12 @@ package domain
 import (
 	"context"
 	"net"
-	"strings"
 
 	pb "transmission-proxy/api/v2"
 
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/hekmon/transmissionrpc/v3"
+	col "github.com/noxiouz/golang-generics-util/collection"
 )
 
 // AppRepo .
@@ -44,6 +43,11 @@ type AppRepo interface {
 
 	// SetPreferences 设置首选项
 	SetPreferences(ctx context.Context, trd transmissionrpc.SessionArguments) error
+}
+
+type Preferences struct {
+	ListenPort col.Option[int32]
+	BanList    col.Option[[]string]
 }
 
 // AppUsecase .
@@ -287,24 +291,23 @@ func (uc *AppUsecase) GetPreferences(ctx context.Context) (*pb.GetPreferencesRes
 	return qbd, nil
 }
 
-func (uc *AppUsecase) SetPreferences(ctx context.Context, req *pb.SetPreferencesRequest) error {
-	//trd := transmissionrpc.SessionArguments{
-	//}
-	//err := uc.repo.SetPreferences(ctx, trd)
-	//if err != nil {
-	//	return err
-	//}
-	json := req.GetJson()
-	codec := encoding.GetCodec("json")
-	var v pb.SetPreferencesRequest_Json
-	err := codec.Unmarshal([]byte(json), &v)
-	if err != nil {
-		return err
+func (uc *AppUsecase) SetPreferences(ctx context.Context, pre *Preferences) (err error) {
+	if pre.ListenPort.HasValue() {
+		peerPort := int64(pre.ListenPort.Value())
+		trd := transmissionrpc.SessionArguments{
+			PeerPort: &peerPort,
+		}
+		err = uc.repo.SetPreferences(ctx, trd)
+		if err != nil {
+			return
+		}
 	}
-	ips := strings.Split(v.GetBanned_IPs(), "\n")
-	err = uc.BanIP(ctx, ips)
-	if err != nil {
-		return err
+
+	if pre.BanList.HasValue() {
+		err = uc.BanIP(ctx, pre.BanList.Value())
+		if err != nil {
+			return
+		}
 	}
-	return nil
+	return
 }

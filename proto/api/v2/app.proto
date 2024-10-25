@@ -184,8 +184,10 @@ message GetPreferencesResponse {
 message SetPreferencesRequest {
 
   message Json {
+    // 用于接收连接的端口
+    optional int32 listen_port = 1;
     // Ban IP 列表，`\n`间隔
-    string banned_IPs = 1;
+    optional string banned_IPs = 2;
   }
 
   string json = 1;
