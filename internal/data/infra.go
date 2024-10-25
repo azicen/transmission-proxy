@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"os"
 
 	"transmission-proxy/conf"
 	"transmission-proxy/internal/domain"
@@ -18,8 +17,6 @@ import (
 	"github.com/google/nftables/expr"
 	"github.com/google/wire"
 	"github.com/hekmon/transmissionrpc/v3"
-	"github.com/jmoiron/sqlx"
-	_ "modernc.org/sqlite"
 )
 
 // ProviderSet is service providers.
@@ -159,7 +156,6 @@ var (
 
 // Infra .
 type Infra struct {
-	DB  *sqlx.DB
 	TR  *transmissionrpc.Client
 	NFT *nftables.Conn
 
@@ -175,24 +171,6 @@ func NewInfra(bootstrap *conf.Bootstrap, logger log.Logger) (*Infra, func(), err
 	stateRefreshInterval := bootstrap.GetInfra().GetTr().GetRequestInterval().AsDuration().Seconds()
 
 	ll := log.NewHelper(logger)
-
-	dbPath := config.GetDatabase().GetPath()
-	// 判断文件是否存在
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		// 文件不存在，创建一个新的 SQLite 数据库文件
-		file, err := os.Create(dbPath)
-		if err != nil {
-			return nil, nil, err
-		}
-		_ = file.Close()
-		ll.Debugf("数据库文件创建成功: %s", dbPath)
-	}
-
-	ll.Debugf("读取数据库文件: %s", dbPath)
-	db, err := sqlx.Connect("sqlite", dbPath)
-	if err != nil {
-		return nil, nil, err
-	}
 
 	endpoint, err := url.Parse(config.GetTr().GetRpcUrl())
 	if err != nil {
@@ -265,7 +243,6 @@ func NewInfra(bootstrap *conf.Bootstrap, logger log.Logger) (*Infra, func(), err
 	cache := gocache.New[*domain.Peer](ristrettoStore)
 
 	infra := &Infra{
-		DB:                   db,
 		TR:                   tr,
 		NFT:                  nft,
 		Cache:                cache,
@@ -286,10 +263,6 @@ func NewInfra(bootstrap *conf.Bootstrap, logger log.Logger) (*Infra, func(), err
 
 		if err = nft.Flush(); err != nil {
 			ll.Errorf("clean NFT sending error: %v", err)
-		}
-
-		if err = db.Close(); err != nil {
-			ll.Errorf("clean Database sending error: %v", err)
 		}
 
 		ll.Info("completion of Infra resource closure")

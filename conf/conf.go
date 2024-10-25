@@ -2,6 +2,7 @@ package conf
 
 import (
 	"embed"
+	"flag"
 	"os"
 	"path/filepath"
 
@@ -10,8 +11,19 @@ import (
 	"github.com/go-kratos/kratos/v2/config/file"
 )
 
+var (
+	// FlagConf 配置文件目录
+	FlagConf string
+)
+
+func init() {
+	flag.StringVar(&FlagConf, "conf", "./conf", "config path, eg: -conf conf.toml")
+}
+
 const (
-	TemplateName = "conf.template.toml"
+	ENVPrefix      = "TRP_"
+	TemplateName   = "conf.template.toml"
+	ConfigFileName = "conf.toml"
 )
 
 //go:embed conf.template.toml
@@ -19,6 +31,7 @@ var TemplateFS embed.FS
 
 // LoadConf 读取配置文件
 func LoadConf(path string, s ...config.Source) (*Bootstrap, func(), error) {
+	path = filepath.Join(path, ConfigFileName)
 	// 检查文件是否存在
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		err := CopyFS(TemplateFS, TemplateName, path)
@@ -28,7 +41,7 @@ func LoadConf(path string, s ...config.Source) (*Bootstrap, func(), error) {
 	}
 
 	source := []config.Source{
-		env.NewSource("TRP_"),
+		env.NewSource(ENVPrefix),
 		file.NewSource(path),
 	}
 	source = append(source, s...)

@@ -105,7 +105,7 @@ func (t *ScheduledTask) RunUpTrackerTask() {
 	task := func() {
 		taskCtx, taskCancel := context.WithCancel(ctx)
 		defer taskCancel()
-		t.log.Debugf("执行更新Tracker任务")
+		t.log.Infof("执行更新Tracker任务")
 		err := t.uc.UpTrackerList(taskCtx)
 		if err != nil {
 			t.log.Errorw("err", err)

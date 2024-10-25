@@ -5,12 +5,15 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"strconv"
+	"os"
+	"path/filepath"
 
+	"transmission-proxy/conf"
 	"transmission-proxy/internal/domain"
 	"transmission-proxy/internal/errors"
 
 	"github.com/eko/gocache/lib/v4/store"
+	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/hekmon/transmissionrpc/v3"
 	col "github.com/noxiouz/golang-generics-util/collection"
@@ -20,22 +23,15 @@ var (
 	CacheNotFoundErr = store.NotFound{}
 )
 
-var schema = `
-CREATE TABLE IF NOT EXISTS properties (
-	id    INTEGER PRIMARY KEY AUTOINCREMENT,
-    key   VARCHAR UNIQUE NOT NULL,
-    value TEXT
-);
-INSERT OR IGNORE INTO properties (key, value) VALUES ('TotalDownloaded', '0');
-INSERT OR IGNORE INTO properties (key, value) VALUES ('TotalUploaded', '0');
-`
-
 const (
-	TotalDownloadedKey = "TotalDownloaded"
-	TotalUploadedKey   = "TotalUploaded"
-	QueryProperties    = `SELECT value FROM properties WHERE key=$1`
-	UpdateProperties   = `UPDATE properties SET value=$2 WHERE key=$1`
+	PropertiesFileName = "properties.json"
 )
+
+// HistoricalStatistics 历史统计数据（写盘统计）
+type HistoricalStatistics struct {
+	TotalDownloaded int64 `json:"total_downloaded"` // 所有时间下载总量（字节）
+	TotalUploaded   int64 `json:"total_uploaded"`   // 所有时间上传总量（字节）
+}
 
 type torrentDao struct {
 	infra *Infra
@@ -44,10 +40,6 @@ type torrentDao struct {
 
 // NewTorrentDao .
 func NewTorrentDao(infra *Infra, logger log.Logger) (domain.TorrentRepo, error) {
-	_, err := infra.DB.Exec(schema)
-	if err != nil {
-		return nil, err
-	}
 
 	return &torrentDao{
 		infra: infra,
@@ -172,43 +164,51 @@ func (d *torrentDao) GetStateRefreshInterval() int64 {
 	return d.infra.stateRefreshInterval
 }
 
-func (d *torrentDao) GetHistoricalStatistics() (domain.HistoricalStatistics, error) {
+func (d *torrentDao) GetHistoricalStatistics() (statistics domain.HistoricalStatistics, err error) {
+	path := filepath.Join(conf.FlagConf, PropertiesFileName)
 
-	var totalDownloadedValue string
-	err := d.infra.DB.Get(&totalDownloadedValue, QueryProperties, TotalDownloadedKey)
-	if err != nil {
-		return domain.HistoricalStatistics{}, err
+	hs := HistoricalStatistics{
+		TotalDownloaded: 0,
+		TotalUploaded:   0,
 	}
-	totalDownloaded, err := strconv.Atoi(totalDownloadedValue)
-	if err != nil {
-		return domain.HistoricalStatistics{}, err
-	}
-	var totalUploadedValue string
-	err = d.infra.DB.Get(&totalUploadedValue, QueryProperties, TotalUploadedKey)
-	if err != nil {
-		return domain.HistoricalStatistics{}, err
-	}
-	totalUploaded, err := strconv.Atoi(totalUploadedValue)
-	if err != nil {
-		return domain.HistoricalStatistics{}, err
+	// 检查文件是否存在
+	if _, err = os.Stat(path); os.IsNotExist(err) {
+		err = d.SaveHistoricalStatistics(statistics)
+		return
 	}
 
-	return domain.HistoricalStatistics{
-		TotalDownloaded: int64(totalDownloaded),
-		TotalUploaded:   int64(totalUploaded),
-	}, nil
+	// 读取文件内容到
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+
+	err = encoding.GetCodec("json").Unmarshal(data, &hs)
+	statistics.TotalDownloaded = hs.TotalUploaded
+	statistics.TotalUploaded = hs.TotalUploaded
+	return
 }
 
 // SaveHistoricalStatistics 保存历史统计
 func (d *torrentDao) SaveHistoricalStatistics(statistics domain.HistoricalStatistics) (err error) {
-	_, err = d.infra.DB.Exec(UpdateProperties, statistics.TotalDownloaded, TotalDownloadedKey)
-	if err != nil {
-		return
-	}
-	_, err = d.infra.DB.Exec(UpdateProperties, statistics.TotalUploaded, TotalUploadedKey)
-	if err != nil {
-		return
+	hs := HistoricalStatistics{
+		TotalDownloaded: statistics.TotalDownloaded,
+		TotalUploaded:   statistics.TotalUploaded,
 	}
 
+	path := filepath.Join(conf.FlagConf, PropertiesFileName)
+	json, err := encoding.GetCodec("json").Marshal(&hs)
+	if err != nil {
+		return
+	}
+	// 打开文件以覆盖写入
+	file, err := os.Create(path)
+	if err != nil {
+		return
+	}
+	defer func(file *os.File) {
+		err = file.Close()
+	}(file)
+	_, err = file.Write(json)
 	return
 }

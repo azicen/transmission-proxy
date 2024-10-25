@@ -32,7 +32,7 @@ openapi.yaml
 .env
 bin/
 conf.toml
-sqlite.db
+properties.json
 
 # IDE
 .idea

@@ -46,10 +46,5 @@ message Infra {
     string add_torrent_label = 6;
   }
 
-  message Database {
-    // sqlite path
-    string path = 1;
-  }
   TR tr = 1;
-  Database database = 2;
 }

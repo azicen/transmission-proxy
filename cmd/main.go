@@ -23,15 +23,9 @@ var (
 	Name = "transmission-proxy"
 	// Version 编译时设置的版本号
 	Version string
-	// 配置文件目录
-	flagConf string
 
 	guid, _ = os.Hostname()
 )
-
-func init() {
-	flag.StringVar(&flagConf, "conf", "./conf/conf.toml", "config path, eg: -conf conf.toml")
-}
 
 func newApp(logger log.Logger, hs *http.Server, _ *trigger.ScheduledTask) *kratos.App {
 	appInstance := kratos.New(
@@ -51,7 +45,7 @@ func newApp(logger log.Logger, hs *http.Server, _ *trigger.ScheduledTask) *krato
 func main() {
 	flag.Parse()
 
-	bc, bcCleanup, err := conf.LoadConf(flagConf)
+	bc, bcCleanup, err := conf.LoadConf(conf.FlagConf)
 	if err != nil {
 		panic(err)
 	}

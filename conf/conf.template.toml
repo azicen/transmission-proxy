@@ -24,6 +24,3 @@ http://tracker.opentrackr.org:1337/announce
 sub_transfer = "https://cf.trackerslist.com/http.txt"
 # 添加种子时添加指定标签
 add_torrent_label = "trproxy"
-
-[infra.database]
-path = "./sqlite.db"
