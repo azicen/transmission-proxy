@@ -141,7 +141,7 @@ func (d *torrentDao) GetTorrentAll(ctx context.Context) (col.Option[[]transmissi
 
 // GetPeer 获取Peer
 func (d *torrentDao) GetPeer(ctx context.Context, key domain.PeerKey) (col.Option[*domain.Peer], error) {
-	peerInfo, err := d.infra.Cache.Get(ctx, key)
+	peerInfo, err := d.infra.PeerCache.Get(ctx, key)
 	if err != nil && CacheNotFoundErr.Is(err) {
 		return col.None[*domain.Peer](), nil
 	}
@@ -153,7 +153,7 @@ func (d *torrentDao) GetPeer(ctx context.Context, key domain.PeerKey) (col.Optio
 
 // SetPeer 设置Peer
 func (d *torrentDao) SetPeer(ctx context.Context, key domain.PeerKey, peer *domain.Peer) error {
-	err := d.infra.Cache.Set(ctx, key, peer)
+	err := d.infra.PeerCache.Set(ctx, key, peer)
 	if err != nil {
 		return err
 	}
@@ -211,4 +211,22 @@ func (d *torrentDao) SaveHistoricalStatistics(statistics domain.HistoricalStatis
 	}(file)
 	_, err = file.Write(json)
 	return
+}
+
+// CacheTmpTorrentFile 缓存临时种子文件
+func (d *torrentDao) CacheTmpTorrentFile(ctx context.Context, filename string, data []byte) (err error) {
+	err = d.infra.TmpTorrentFileData.Set(ctx, filename, data)
+	return
+}
+
+// GetTmpTorrentFile 获取缓存的临时种子文件
+func (d *torrentDao) GetTmpTorrentFile(ctx context.Context, filename string) (col.Option[[]byte], error) {
+	data, err := d.infra.TmpTorrentFileData.Get(ctx, filename)
+	if err != nil && CacheNotFoundErr.Is(err) {
+		return col.None[[]byte](), nil
+	}
+	if err != nil {
+		return col.None[[]byte](), err
+	}
+	return col.Some(data), nil
 }

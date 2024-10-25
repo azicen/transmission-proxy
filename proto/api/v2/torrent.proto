@@ -35,6 +35,14 @@ service Torrent {
       get: "/api/v2/torrents/properties"
     };
   }
+
+  // Download 下载
+  // 用于给tr提供临时下载使用
+  rpc Download(DownloadRequest) returns (google.protobuf.Empty) {
+    option(google.api.http) = {
+      get: "/download/{filename}"
+    };
+  }
 }
 
 // 添加种子请求
@@ -391,4 +399,8 @@ message GetPropertiesResponse {
 
   // 如果 torrent 来自私人追踪器，则为 True
   bool isPrivate = 34;
+}
+
+message DownloadRequest {
+  string filename = 1;
 }

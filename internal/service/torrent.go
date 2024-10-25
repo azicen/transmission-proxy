@@ -2,6 +2,11 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net/url"
+	"strconv"
 	"strings"
 
 	pb "transmission-proxy/api/v2"
@@ -9,6 +14,8 @@ import (
 	"transmission-proxy/internal/errors"
 
 	"github.com/go-kratos/kratos/v2/encoding"
+	"github.com/go-kratos/kratos/v2/transport"
+	"github.com/go-kratos/kratos/v2/transport/http"
 	col "github.com/noxiouz/golang-generics-util/collection"
 	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -29,11 +36,48 @@ func NewTorrentService(uc *domain.TorrentUsecase) *TorrentService {
 // Add 添加种子
 func (s *TorrentService) Add(ctx context.Context, req *pb.AddRequest) (res *emptypb.Empty, err error) {
 	res = &emptypb.Empty{}
-	urls := strings.Split(req.Urls, "\n")
+	urlsStr := strings.Split(req.Urls, "\n")
+	urls := make([]string, 0, len(urlsStr))
+
+	for _, str := range urlsStr {
+		if str == "" {
+			continue
+		}
+		parseURL, err := url.Parse(str)
+		if err != nil {
+			continue
+		}
+		urls = append(urls, parseURL.String())
+	}
+
+	if len(urls) == 0 {
+		// 没有url，传输的种子文件
+		httpCTX, ok := ctx.(http.Context)
+		if !ok {
+			return
+		}
+		httpReq := httpCTX.Request()
+
+		const prefix = "torrent__"
+		i := 0
+		for {
+			fileHeader, exist := httpReq.MultipartForm.File[fmt.Sprintf("%s%d", prefix, i)]
+			if !exist {
+				break
+			}
+			urlStr, err := s.cacheTorrent(ctx, fileHeader[0])
+			if err != nil {
+				return nil, err
+			}
+			urls = append(urls, urlStr)
+			i = i + 1
+		}
+	}
+
 	torrents := make([]*domain.Torrent, 0, len(urls))
-	for _, url := range urls {
+	for _, urlStr := range urls {
 		torrent := &domain.Torrent{
-			URL:    url,
+			URL:    urlStr,
 			Path:   col.None[string](),
 			Labels: col.None[[]string](),
 			Cookie: col.None[string](),
@@ -61,6 +105,22 @@ func (s *TorrentService) Add(ctx context.Context, req *pb.AddRequest) (res *empt
 	}
 
 	err = s.uc.Add(ctx, torrents)
+	return
+}
+
+func (s *TorrentService) cacheTorrent(ctx context.Context, fileHeader *multipart.FileHeader) (
+	filename string, err error) {
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	fileData, err := io.ReadAll(file)
+	if err != nil {
+		return
+	}
+	filename, err = s.uc.CacheTmpTorrentFile(ctx, fileData)
 	return
 }
 
@@ -112,4 +172,31 @@ func (s *TorrentService) GetProperties(ctx context.Context, req *pb.GetPropertie
 	}
 
 	return qbt.Value(), nil
+}
+
+// Download 下载
+// 用于给tr提供临时下载使用
+func (s *TorrentService) Download(ctx context.Context, req *pb.DownloadRequest) (res *emptypb.Empty, err error) {
+	res = &emptypb.Empty{}
+
+	data, err := s.uc.GetTmpTorrentFile(ctx, req.GetFilename())
+	if err != nil {
+		return
+	}
+
+	disposition := fmt.Sprintf("attachment; filename=%s", req.GetFilename())
+
+	if tr, ok := transport.FromServerContext(ctx); ok {
+		tr.ReplyHeader().Set("Content-Type", "application/x-bittorrent")
+		tr.ReplyHeader().Set("Accept-Ranges", "bytes")
+		tr.ReplyHeader().Set("Content-Disposition", disposition)
+		tr.ReplyHeader().Set("Content-Length", strconv.Itoa(len(data)))
+	}
+
+	httpCTX, ok := ctx.(http.Context)
+	if !ok {
+		return
+	}
+	_, err = httpCTX.Response().Write(data)
+	return
 }

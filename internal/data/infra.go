@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"time"
 
 	"transmission-proxy/conf"
 	"transmission-proxy/internal/domain"
 
 	"github.com/dgraph-io/ristretto"
 	gocache "github.com/eko/gocache/lib/v4/cache"
+	"github.com/eko/gocache/lib/v4/store"
 	ristrettostore "github.com/eko/gocache/store/ristretto/v4"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/nftables"
@@ -159,8 +161,11 @@ type Infra struct {
 	TR  *transmissionrpc.Client
 	NFT *nftables.Conn
 
-	// key: <hash:ip:port>
-	Cache *gocache.Cache[*domain.Peer]
+	// PeerCache key: <hash:ip:port>
+	PeerCache *gocache.Cache[*domain.Peer]
+
+	// TmpTorrentFileData 临时种子文件缓存
+	TmpTorrentFileData *gocache.Cache[[]byte]
 
 	stateRefreshInterval int64
 }
@@ -231,7 +236,7 @@ func NewInfra(bootstrap *conf.Bootstrap, logger log.Logger) (*Infra, func(), err
 	}
 
 	// 创建缓存
-	ristrettoCache, err := ristretto.NewCache(&ristretto.Config{
+	peerCacheConf, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 50000,         // 缓存数量
 		MaxCost:     PeerCacheSize, // 最大缓存容量(字节, 1M内存)
 		BufferItems: 64,            // number of keys per Get buffer.
@@ -239,13 +244,31 @@ func NewInfra(bootstrap *conf.Bootstrap, logger log.Logger) (*Infra, func(), err
 	if err != nil {
 		return nil, nil, err
 	}
-	ristrettoStore := ristrettostore.NewRistretto(ristrettoCache)
-	cache := gocache.New[*domain.Peer](ristrettoStore)
+	peerCacheStore := ristrettostore.NewRistretto(
+		peerCacheConf,
+	)
+	peerCache := gocache.New[*domain.Peer](peerCacheStore)
+
+	// 创建缓存
+	tmpTorrentCacheConf, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 100,     // 缓存数量
+		MaxCost:     1 << 30, // 最大缓存容量(字节, 1G内存)
+		BufferItems: 64,      // number of keys per Get buffer.
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	tmpTorrentStore := ristrettostore.NewRistretto(
+		tmpTorrentCacheConf,
+		store.WithExpiration(10*time.Minute), // 默认过期时间 1分钟
+	)
+	tmpTorrentCache := gocache.New[[]byte](tmpTorrentStore)
 
 	infra := &Infra{
 		TR:                   tr,
 		NFT:                  nft,
-		Cache:                cache,
+		PeerCache:            peerCache,
+		TmpTorrentFileData:   tmpTorrentCache,
 		stateRefreshInterval: int64(stateRefreshInterval),
 	}
 

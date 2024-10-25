@@ -12,6 +12,8 @@ import (
 	"github.com/go-kratos/kratos/v2/middleware/logging"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
 	"github.com/go-kratos/kratos/v2/transport/http"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // NewHTTPServer new an HTTP server.
@@ -40,7 +42,9 @@ func NewHTTPServer(
 	}
 
 	server := http.NewServer(opts...)
+	RegisterPingHTTPServer(server, appSrv)
 	RegisterFormDataHTTPServer(server, torrentSrv)
+	RegisterDeficienciesContentTypeHTTPServer(server, authSrv)
 	v2.RegisterAppHTTPServer(server, appSrv)
 	v2.RegisterAuthHTTPServer(server, authSrv)
 	v2.RegisterSyncHTTPServer(server, syncSrv)
@@ -48,6 +52,65 @@ func NewHTTPServer(
 	v2.RegisterTransferHTTPServer(server, transferSrv)
 
 	return server
+}
+
+func RegisterPingHTTPServer(s *http.Server, srv v2.AppHTTPServer) {
+	r := s.Route("/")
+	r.HEAD("", func(ctx http.Context) error { return ctx.Result(200, nil) })
+	r.GET("", AppPingHttpHandler(srv))
+}
+
+func AppPingHttpHandler(srv v2.AppHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in emptypb.Empty
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, v2.OperationAppPing)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.Ping(ctx, req.(*emptypb.Empty))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*wrapperspb.StringValue)
+		return ctx.Result(200, reply)
+	}
+}
+
+func RegisterDeficienciesContentTypeHTTPServer(s *http.Server, srv v2.AuthHTTPServer) {
+	// 为什么会存在缺少ContentType头的HTTP请求呢？
+	r := s.Route("/")
+	r.POST("/api/v2/auth/logout", AuthLogoutHttpHandler(srv))
+}
+
+func AuthLogoutHttpHandler(srv v2.AuthHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		// 保证默认有ContentType
+		ct := ctx.Request().Header.Get("Content-Type")
+		if ct == "" {
+			ctx.Request().Header.Set("Content-Type", "application/json")
+		}
+
+		var in emptypb.Empty
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, v2.OperationAuthLogout)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.Logout(ctx, req.(*emptypb.Empty))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*wrapperspb.StringValue)
+		return ctx.Result(200, reply)
+	}
 }
 
 func RegisterFormDataHTTPServer(s *http.Server, srv v2.TorrentHTTPServer) {

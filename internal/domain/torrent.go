@@ -8,11 +8,15 @@ import (
 
 	pb "transmission-proxy/api/v2"
 	"transmission-proxy/conf"
+	"transmission-proxy/internal/errors"
 
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/google/uuid"
 	"github.com/hekmon/transmissionrpc/v3"
 	col "github.com/noxiouz/golang-generics-util/collection"
 )
+
+const torrentFileSuffix = ".torrent"
 
 type PeerKey struct {
 	hash string
@@ -103,6 +107,12 @@ type TorrentRepo interface {
 
 	// SaveHistoricalStatistics 保存历史统计
 	SaveHistoricalStatistics(statistics HistoricalStatistics) error
+
+	// CacheTmpTorrentFile 缓存临时种子文件
+	CacheTmpTorrentFile(ctx context.Context, filename string, data []byte) error
+
+	// GetTmpTorrentFile 获取缓存的临时种子文件
+	GetTmpTorrentFile(ctx context.Context, filename string) (data col.Option[[]byte], err error)
 }
 
 // TorrentUsecase .
@@ -120,6 +130,8 @@ type TorrentUsecase struct {
 	defaultTrackers []string
 	// subTransferURL 订阅的Transfer列表URL
 	subTransferURL string
+
+	rootURL string
 }
 
 // NewTorrentUsecase .
@@ -164,6 +176,7 @@ func NewTorrentUsecase(bootstrap *conf.Bootstrap, dao TorrentRepo, logger log.Lo
 		torrentLabel:    col.None[string](),
 		defaultTrackers: defaultTrackers,
 		subTransferURL:  subTransferURL,
+		rootURL:         bootstrap.GetTrigger().GetHttp().GetRootRul(),
 	}
 
 	torrentLabel := bootstrap.GetInfra().GetTr().GetAddTorrentLabel()
@@ -766,5 +779,35 @@ func (uc *TorrentUsecase) SaveStatistics() (err error) {
 		TotalUploaded:   uc.statistics.TotalUploaded + uc.statistics.TotalUploadedSession,
 	}
 	err = uc.repo.SaveHistoricalStatistics(statistics)
+	return
+}
+
+// CacheTmpTorrentFile 缓存临时种子文件
+func (uc *TorrentUsecase) CacheTmpTorrentFile(ctx context.Context, data []byte) (fileURL string, err error) {
+	if len(data) == 0 {
+		return "", errors.ResourceNotExist("空的种子文件数据")
+	}
+
+	id := uuid.New().String()
+	filename := fmt.Sprintf("%s%s", id, torrentFileSuffix)
+	err = uc.repo.CacheTmpTorrentFile(ctx, filename, data)
+	if err != nil {
+		return
+	}
+
+	fileURL, err = url.JoinPath(uc.rootURL, "download", filename)
+	return
+}
+
+// GetTmpTorrentFile 获取缓存的临时种子文件
+func (uc *TorrentUsecase) GetTmpTorrentFile(ctx context.Context, filename string) (data []byte, err error) {
+	dataOption, err := uc.repo.GetTmpTorrentFile(ctx, filename)
+	if err != nil {
+		return
+	}
+	if !dataOption.HasValue() {
+		return nil, errors.ResourceNotExist("种子文件不存在")
+	}
+	data = dataOption.Value()
 	return
 }

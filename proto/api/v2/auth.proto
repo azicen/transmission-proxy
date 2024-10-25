@@ -5,6 +5,7 @@ package transmission.auth.api.v2;
 import "validate/validate.proto";
 import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
 
 option go_package = "transmission-proxy/api/v2;v2";
 
@@ -12,9 +13,18 @@ service Auth {
 
   // 登陆。
   // https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#login
-  rpc Login(AuthRequest) returns (google.protobuf.Empty) {
+  rpc Login(AuthRequest) returns (google.protobuf.StringValue) {
     option(google.api.http) = {
       post: "/api/v2/auth/login"
+      body: "*"
+    };
+  }
+
+  // 登出。
+  // https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#logout
+  rpc Logout(google.protobuf.Empty) returns (google.protobuf.StringValue) {
+    option(google.api.http) = {
+      post: "/api/v2/auth/logout"
       body: "*"
     };
   }

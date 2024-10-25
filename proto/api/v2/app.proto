@@ -11,11 +11,25 @@ option go_package = "transmission-proxy/api/v2;v2";
 
 service App {
 
+  rpc Ping(google.protobuf.Empty) returns (google.protobuf.StringValue) {
+    option(google.api.http) = {
+      get: ""
+    };
+  }
+
   // 获取应用程序版本。
   // https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#get-application-version
   rpc GetVersion(google.protobuf.Empty) returns (google.protobuf.StringValue) {
     option(google.api.http) = {
       get: "/api/v2/app/version"
+    };
+  }
+
+  // 获取WebAPI版本。
+  // https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#get-api-version
+  rpc GetWebAPIVersion(google.protobuf.Empty) returns (google.protobuf.StringValue) {
+    option(google.api.http) = {
+      get: "/api/v2/app/webapiVersion"
     };
   }
 

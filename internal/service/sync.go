@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
-	col "github.com/noxiouz/golang-generics-util/collection"
 
 	"transmission-proxy/internal/domain"
 
+	col "github.com/noxiouz/golang-generics-util/collection"
 	pb "transmission-proxy/api/v2"
 )
 

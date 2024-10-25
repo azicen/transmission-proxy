@@ -6,6 +6,8 @@ log_level = "WARN"
 [trigger.http]
 host = "0.0.0.0"
 port = 8000
+# 覆盖自动生成的公共URL，如果与TR客户端不再同一个环境运行，这很有用
+root_rul = "http://localhost:8000"
 timeout = "5s"
 
 [infra.tr]

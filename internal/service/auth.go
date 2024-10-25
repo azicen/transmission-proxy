@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+
 	pb "transmission-proxy/api/v2"
 	"transmission-proxy/internal/domain"
 
 	"github.com/go-kratos/kratos/v2/transport"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 type AuthService struct {
@@ -22,9 +24,14 @@ func NewAuthService(uc *domain.TorrentUsecase) *AuthService {
 }
 
 // Login 登陆
-func (s *AuthService) Login(ctx context.Context, req *pb.AuthRequest) (*emptypb.Empty, error) {
+func (s *AuthService) Login(ctx context.Context, req *pb.AuthRequest) (*wrapperspb.StringValue, error) {
 	if tr, ok := transport.FromServerContext(ctx); ok {
 		tr.ReplyHeader().Set("Set-Cookie", "SID=uTgftNGsVl4afcI4ev7riOJavOyNKZnb; HttpOnly; path=/")
 	}
-	return &emptypb.Empty{}, nil
+	return &wrapperspb.StringValue{Value: "Ok."}, nil
+}
+
+// Logout 登出
+func (s *AuthService) Logout(_ context.Context, _ *emptypb.Empty) (*wrapperspb.StringValue, error) {
+	return &wrapperspb.StringValue{Value: "Ok."}, nil
 }
