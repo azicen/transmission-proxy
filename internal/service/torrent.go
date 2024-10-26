@@ -125,7 +125,8 @@ func (s *TorrentService) cacheTorrent(ctx context.Context, fileHeader *multipart
 }
 
 // GetInfo 获取种子列表
-func (s *TorrentService) GetInfo(ctx context.Context, req *pb.GetInfoRequest) (*httpbody.HttpBody, error) {
+func (s *TorrentService) GetInfo(ctx context.Context, req *pb.GetInfoRequest) (res *httpbody.HttpBody, err error) {
+	res = &httpbody.HttpBody{Data: make([]byte, 0)}
 	filter := domain.TorrentFilter{
 		Status: col.None[string](),
 		Label:  col.None[string](),
@@ -144,19 +145,32 @@ func (s *TorrentService) GetInfo(ctx context.Context, req *pb.GetInfoRequest) (*
 
 	qbTorrents, err := s.uc.GetTorrentList(ctx, filter)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	if !qbTorrents.HasValue() {
-		return &httpbody.HttpBody{Data: make([]byte, 0)}, nil
+		return
 	}
 
 	// 获取编解码器并编码json, qb需要返回一个纯数组`[{xxx},{xxx},...]`
-	json, err := encoding.GetCodec("json").Marshal(qbTorrents.Value())
-	if err != nil {
-		return &httpbody.HttpBody{Data: make([]byte, 0)}, nil
+	// 直接编码[]any导致json默认值被省略，需要手动拼接
+	data := make([]byte, 0, len(qbTorrents.Value())*2048)
+	data = append(data, '[')
+	codec := encoding.GetCodec("json")
+	for _, torrent := range qbTorrents.Value() {
+		var json []byte
+		json, err = codec.Marshal(torrent)
+		if err != nil {
+			return
+		}
+		data = append(data, json...)
+		data = append(data, ',')
 	}
-	return &httpbody.HttpBody{Data: json}, nil
+	if data[len(data)-1] == ',' {
+		data[len(data)-1] = ']'
+	}
+
+	return &httpbody.HttpBody{Data: data}, nil
 }
 
 // GetProperties 获取种子属性属性
