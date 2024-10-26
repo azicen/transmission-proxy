@@ -414,7 +414,6 @@ func (uc *TorrentUsecase) GetTorrentPeers(ctx context.Context, hash string) (
 			Port:         peerInfo.Port,          // 端口号
 			Progress:     peerInfo.Progress,      // 进度（0-100%）
 			Relevance:    0,                      // 相关性 TR:noFunc
-			Shadowbanned: false,                  // 是否被影子禁用 TR:noFunc
 			UpSpeed:      peerInfo.UploadSpeed,   // 上传速度（字节/秒）
 			Uploaded:     peerInfo.Uploaded,      // 已上传数据量（字节） TR:noFunc 代理统计
 			// 没有验证Uploaded是否可以计算 -> int64(float64(*trt.TotalSize) * peer.Progress)

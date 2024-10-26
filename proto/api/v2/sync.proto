@@ -220,12 +220,9 @@ message PeerInfo {
   // 相关性
   int32 relevance = 14;
 
-  // 是否被影子禁用
-  bool shadowbanned = 15;
-
   // 上传速度（字节/秒）
-  int64 up_speed = 16;
+  int64 up_speed = 15;
 
   // 已上传数据量（字节）
-  int64 uploaded = 17;
+  int64 uploaded = 16;
 }
