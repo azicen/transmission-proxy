@@ -23,6 +23,8 @@ https://btn-prod.ghostchu-services.top/tracker/announce
 http://tracker.opentrackr.org:1337/announce
 """
 # 自定义订阅列表
-sub_transfer = "https://cf.trackerslist.com/http.txt"
+sub_transfer = "https://cf.trackerslist.com/best.txt"
 # 添加种子时添加指定标签
 add_torrent_label = "trproxy"
+# transfer 刷新到种子的时间间隔, 3小时
+transfer_request_interval = "10800s"

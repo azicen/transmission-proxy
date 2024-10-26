@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"transmission-proxy/conf"
 	"transmission-proxy/internal/domain"
 
 	"github.com/go-kratos/kratos/v2/log"
@@ -13,20 +14,25 @@ type ScheduledTask struct {
 	ctx context.Context
 	uc  *domain.TorrentUsecase
 
-	d   time.Duration
+	// 客户端状态刷新间隔
+	stateRefreshInterval time.Duration
+	// transfer刷新到种子的时间间隔
+	transferRequestInterval time.Duration
+
 	log *log.Helper
 }
 
-func NewScheduledTask(uc *domain.TorrentUsecase, logger log.Logger) (
+func NewScheduledTask(bootstrap *conf.Bootstrap, uc *domain.TorrentUsecase, logger log.Logger) (
 	*ScheduledTask, func()) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	task := &ScheduledTask{
-		ctx: ctx,
-		uc:  uc,
-		d:   time.Duration(uc.GetStateRefreshInterval()) * time.Second,
-		log: log.NewHelper(logger),
+		ctx:                     ctx,
+		uc:                      uc,
+		stateRefreshInterval:    time.Duration(uc.GetStateRefreshInterval()) * time.Second,
+		transferRequestInterval: bootstrap.GetInfra().GetTr().GetTransferRequestInterval().AsDuration(),
+		log:                     log.NewHelper(logger),
 	}
 
 	task.RunStatisticsTask()
@@ -44,7 +50,7 @@ func (t *ScheduledTask) RunStatisticsTask() {
 	t.log.Debugf("启动更新状态任务")
 	ctx, cancel := context.WithCancel(t.ctx)
 	_ = cancel
-	ticker := time.NewTicker(t.d)
+	ticker := time.NewTicker(t.stateRefreshInterval)
 	go func() {
 		defer ticker.Stop()
 		for {
@@ -107,7 +113,7 @@ func (t *ScheduledTask) RunUpTrackerTask() {
 	ctx, cancel := context.WithCancel(t.ctx)
 	_ = cancel
 	// 每日刷新一次
-	ticker := time.NewTicker(24 * time.Hour)
+	ticker := time.NewTicker(t.stateRefreshInterval)
 
 	task := func() {
 		taskCtx, taskCancel := context.WithCancel(ctx)

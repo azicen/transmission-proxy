@@ -45,6 +45,9 @@ message Infra {
 
     // 添加种子时添加指定标签
     string add_torrent_label = 6;
+
+    // transfer 刷新到种子的时间间隔
+    google.protobuf.Duration transfer_request_interval = 7;
   }
 
   TR tr = 1;

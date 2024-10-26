@@ -45,7 +45,7 @@ func initApp(bootstrap *conf.Bootstrap, logger log.Logger) (*kratos.App, func(),
 	torrentService := service.NewTorrentService(torrentUsecase)
 	transferService := service.NewTransferService(appUsecase)
 	server := trigger.NewHTTPServer(bootstrap, appService, authService, syncService, torrentService, transferService, logger)
-	scheduledTask, cleanup2 := trigger.NewScheduledTask(torrentUsecase, logger)
+	scheduledTask, cleanup2 := trigger.NewScheduledTask(bootstrap, torrentUsecase, logger)
 	app := newApp(logger, server, scheduledTask)
 	return app, func() {
 		cleanup2()

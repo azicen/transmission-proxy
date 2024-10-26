@@ -190,6 +190,8 @@ func NewTorrentUsecase(bootstrap *conf.Bootstrap, dao TorrentRepo, logger log.Lo
 
 // UpTrackerList 更新Tracker列表
 func (uc *TorrentUsecase) UpTrackerList(ctx context.Context) (err error) {
+	// 完整的更新一次tracker列表
+
 	trackers := make(map[string]struct{}, len(uc.trackers))
 	for _, tracker := range uc.defaultTrackers {
 		trackers[tracker] = struct{}{}
@@ -210,6 +212,7 @@ func (uc *TorrentUsecase) UpTrackerList(ctx context.Context) (err error) {
 		}
 	}
 
+	// 缓存下来，当添加种子时使用
 	uc.trackers = make([]string, 0, len(trackers))
 	for tracker := range trackers {
 		uc.trackers = append(uc.trackers, tracker)
