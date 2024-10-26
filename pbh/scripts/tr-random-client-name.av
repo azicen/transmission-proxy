@@ -1,0 +1,21 @@
+## @NAME PeerID/ClientName TR随机客户端名称检查
+## @AUTHOR PBH-BTN Community
+## @CACHEABLE true
+## @VERSION 1.0
+## @THREADSAFE true
+
+if(isBlank(peer.clientName)) {
+    return false;
+}
+## 全部转换为小写
+let clientNameLowercase = toLowerCase(peer.clientName);
+
+## 伪装检查
+if(string.endsWith(clientNameLowercase, '-')) {
+    if(string.indexOf(clientNameLowercase, '-') == 2) {
+        ## p('ClientName='+clientNameLowercase + ', excepted='+ seq.get(table, tableName));
+        return 'Peer reporting: ClientName=' + clientNameLowercase + ', 异常的客户端名称';
+    }
+}
+
+return false;
