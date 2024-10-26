@@ -249,6 +249,25 @@ func (d *appDao) UpBanIPV6List(ctx context.Context, ips []string) (err error) {
 	return
 }
 
+// ClearBanList 清空Ban列表
+func (d *appDao) ClearBanList(_ context.Context) (err error) {
+	d.banlistIPV4 = make(map[string]struct{}, len(d.banlistIPV4))
+	d.banlistIPV6 = make(map[string]struct{}, len(d.banlistIPV6))
+	// 重置 set
+	d.infra.NFT.DelSet(BanIPV4Set)
+	d.infra.NFT.DelSet(BanIPV6Set)
+	err = d.infra.NFT.AddSet(BanIPV4Set, nil)
+	if err != nil {
+		return
+	}
+	err = d.infra.NFT.AddSet(BanIPV6Set, nil)
+	if err != nil {
+		return
+	}
+	err = d.infra.NFT.Flush()
+	return
+}
+
 // GetPreferences 获取首选项
 func (d *appDao) GetPreferences(ctx context.Context) (transmissionrpc.SessionArguments, error) {
 	pre, err := d.infra.TR.SessionArgumentsGet(ctx, preferencesFields)

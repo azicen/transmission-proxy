@@ -38,6 +38,9 @@ type AppRepo interface {
 	// UpBanIPV6List 更新ipv6封禁列表
 	UpBanIPV6List(ctx context.Context, ips []string) error
 
+	// ClearBanList 清空Ban列表
+	ClearBanList(ctx context.Context) error
+
 	// GetPreferences 获取首选项
 	GetPreferences(ctx context.Context) (transmissionrpc.SessionArguments, error)
 
@@ -188,11 +191,19 @@ func (uc *AppUsecase) UpBanIPList(ctx context.Context, ips []string) (err error)
 			readyIPV6 = append(readyIPV6, ipNet.String())
 		}
 	}
-	err = uc.repo.UpBanIPV4List(ctx, readyIPV4)
+
+	// 清空ban列表
+	err = uc.repo.ClearBanList(ctx)
 	if err != nil {
 		return
 	}
-	err = uc.repo.UpBanIPV6List(ctx, readyIPV6)
+
+	// 全量ban
+	err = uc.repo.BanIPV4(ctx, readyIPV4)
+	if err != nil {
+		return
+	}
+	err = uc.repo.BanIPV6(ctx, readyIPV6)
 	if err != nil {
 		return
 	}
