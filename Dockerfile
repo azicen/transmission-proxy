@@ -43,4 +43,4 @@ RUN chmod 755 \
     /usr/sbin/trproxy \
     /etc/s6-overlay/s6-rc.d/init-trproxy-config/run
 
-EXPOSE 8000
+EXPOSE 9092
