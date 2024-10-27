@@ -168,6 +168,8 @@ func (s *TorrentService) GetInfo(ctx context.Context, req *pb.GetInfoRequest) (r
 	}
 	if data[len(data)-1] == ',' {
 		data[len(data)-1] = ']'
+	} else {
+		data = append(data, ']')
 	}
 
 	return &httpbody.HttpBody{Data: data}, nil

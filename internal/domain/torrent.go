@@ -111,6 +111,10 @@ type Torrent struct {
 	UploadRatio       float32           // 种子的分享比
 	Priority          int32             // 种子的优先级 若队列已禁用或处于做种模式，则返回 -1
 	SeedingTime       time.Duration     // 种子完成后的做种时间（秒）
+
+	Status     transmissionrpc.TorrentStatus // 种子状态
+	IsFinished bool                          // 已经完成
+	IsStalled  bool                          // 停滞
 }
 
 type TorrentFilter struct {
@@ -661,7 +665,109 @@ func (uc *TorrentUsecase) filterTorrent(torrents []*Torrent, filter TorrentFilte
 		torrents = tmpTorrents
 	}
 
-	// TODO 过滤种子列表的状态
+	// 过滤种子列表的状态
+	if filter.Status.HasValue() {
+		status := filter.Status.Value()
+		if status == "all" {
+			// 什么都不做
+		}
+		if status == "resumed" {
+			// 什么都做不了, tr缺少这个状态
+			return make([]*Torrent, 0)
+		}
+
+		if status == "active" {
+			// 活跃
+			tmpTorrents := make([]*Torrent, 0, len(torrents))
+			for _, torrent := range torrents {
+				// 有错误
+				if torrent.UploadSpeed <= 0 && torrent.DownloadSpeed <= 0 {
+					continue
+				}
+				tmpTorrents = append(tmpTorrents, torrent)
+			}
+			torrents = tmpTorrents
+		}
+
+		torrentStatusFilter := make(map[transmissionrpc.TorrentStatus]struct{}, 10)
+		switch status {
+		case "downloading":
+			// 下载
+			// TorrentStatusDownload 表示正在下载的种子
+			torrentStatusFilter[transmissionrpc.TorrentStatusDownload] = struct{}{}
+
+		case "seeding":
+			// 做种
+			// TorrentStatusSeed 表示正在做种的种子
+			torrentStatusFilter[transmissionrpc.TorrentStatusSeed] = struct{}{}
+
+		case "paused":
+			// 停止
+			// TorrentStatusStopped 表示已停止的种子
+			torrentStatusFilter[transmissionrpc.TorrentStatusStopped] = struct{}{}
+
+		case "stalled_uploading":
+			// TorrentStatusSeedWait 表示排队等待做种的种子
+			// 上传已暂停
+			torrentStatusFilter[transmissionrpc.TorrentStatusSeedWait] = struct{}{}
+
+		case "stalled_downloading":
+			// 下载已暂停
+			// TorrentStatusDownloadWait 表示排队等待下载的种子
+			torrentStatusFilter[transmissionrpc.TorrentStatusDownloadWait] = struct{}{}
+
+		case "checking":
+			// 正在检查
+			// TorrentStatusCheckWait 表示排队等待校验文件的种子
+			// TorrentStatusCheck 表示正在校验文件的种子
+			torrentStatusFilter[transmissionrpc.TorrentStatusCheckWait] = struct{}{}
+			torrentStatusFilter[transmissionrpc.TorrentStatusCheck] = struct{}{}
+		}
+
+		if len(torrentStatusFilter) > 0 {
+			tmpTorrents := make([]*Torrent, 0, len(torrents))
+			for _, torrent := range torrents {
+				if _, ok := torrentStatusFilter[torrent.Status]; ok {
+					tmpTorrents = append(tmpTorrents, torrent)
+				}
+			}
+			torrents = tmpTorrents
+		}
+
+		if status == "completed" {
+			//tmpTorrents := make([]*Torrent, 0, len(torrents))
+			//for _, torrent := range torrents {
+			//	// 是否完成
+			//	if torrent.IsFinished {
+			//		tmpTorrents = append(tmpTorrents, torrent)
+			//	}
+			//}
+			//torrents = tmpTorrents
+		}
+
+		if status == "stalled" || status == "inactive" {
+			//tmpTorrents := make([]*Torrent, 0, len(torrents))
+			//for _, torrent := range torrents {
+			//	// 停滞
+			//	if torrent.IsStalled {
+			//		tmpTorrents = append(tmpTorrents, torrent)
+			//	}
+			//}
+			//torrents = tmpTorrents
+		}
+
+		if status == "errored" {
+			//tmpTorrents := make([]transmissionrpc.Torrent, 0, len(torrents))
+			//for _, torrent := range torrents {
+			//	// 有错误
+			//	if torrent.Error == nil {
+			//		continue
+			//	}
+			//	tmpTorrents = append(tmpTorrents, torrent)
+			//}
+			//torrents = tmpTorrents
+		}
+	}
 
 	// 标签筛选
 	if filter.Label.HasValue() {
@@ -818,6 +924,9 @@ func trTorrentToTorrent(trt transmissionrpc.Torrent) *Torrent {
 		UploadRatio:            float32(*trt.UploadRatio),
 		Priority:               int32(*trt.BandwidthPriority),
 		SeedingTime:            *trt.TimeSeeding,
+		Status:                 *trt.Status,
+		IsFinished:             *trt.IsFinished,
+		IsStalled:              *trt.IsStalled,
 	}
 
 	torrent.Progress = float32((float64(torrent.HaveValidSize) - float64(torrent.LeftUntilDone)) / float64(torrent.HaveValidSize))
