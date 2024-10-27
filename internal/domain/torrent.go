@@ -18,6 +18,7 @@ import (
 )
 
 const torrentFileSuffix = ".torrent"
+const trackerMaxSize = 64 // tracker 列表过长可能会更新失败
 
 type PeerKey struct {
 	hash string
@@ -191,16 +192,19 @@ func NewTorrentUsecase(bootstrap *conf.Bootstrap, dao TorrentRepo, logger log.Lo
 // UpTrackerList 更新Tracker列表
 func (uc *TorrentUsecase) UpTrackerList(ctx context.Context) (err error) {
 	// 完整的更新一次tracker列表
+	i := 0
 
 	trackers := make(map[string]struct{}, len(uc.trackers))
 	for _, tracker := range uc.defaultTrackers {
 		trackers[tracker] = struct{}{}
+		i = i + 1
 	}
 
 	lines, err := uc.repo.GetResponseLine(ctx, uc.subTransferURL)
 	if err != nil {
 		return
 	}
+
 	for _, line := range lines {
 		// 检查url
 		urlStr := strings.TrimSpace(line)
@@ -208,7 +212,11 @@ func (uc *TorrentUsecase) UpTrackerList(ctx context.Context) (err error) {
 			trackerURL, err := url.ParseRequestURI(urlStr)
 			if err == nil {
 				trackers[trackerURL.String()] = struct{}{}
+				i = i + 1
 			}
+		}
+		if i >= trackerMaxSize {
+			break
 		}
 	}
 

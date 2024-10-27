@@ -71,10 +71,11 @@ func (d *torrentDao) GetResponseLine(_ context.Context, trackerListURL string) (
 // UpTracker 更新Tracker
 func (d *torrentDao) UpTracker(ctx context.Context, ids []int64, trackers []string) (err error) {
 	// 添加tracker
-	err = d.infra.TR.TorrentSet(ctx, transmissionrpc.TorrentSetPayload{
+	data := transmissionrpc.TorrentSetPayload{
 		IDs:         ids,
 		TrackerList: trackers,
-	})
+	}
+	err = d.infra.TR.TorrentSet(ctx, data)
 	return
 }
 
