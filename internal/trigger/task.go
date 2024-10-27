@@ -57,7 +57,7 @@ func (t *ScheduledTask) RunStatisticsTask() {
 			select {
 			case <-ticker.C:
 				t.log.Debugf("执行更新状态任务")
-				err := t.uc.UpPeerData(t.ctx)
+				err := t.uc.UpClientData(t.ctx)
 				if err != nil {
 					t.log.Errorw("err", err)
 				}
@@ -112,8 +112,9 @@ func (t *ScheduledTask) RunUpTrackerTask() {
 	t.log.Debugf("启动更新Tracker任务")
 	ctx, cancel := context.WithCancel(t.ctx)
 	_ = cancel
-	// 每日刷新一次
-	ticker := time.NewTicker(t.stateRefreshInterval)
+
+	//ticker := time.NewTicker(t.stateRefreshInterval)
+	ticker := time.NewTicker(t.transferRequestInterval)
 
 	task := func() {
 		taskCtx, taskCancel := context.WithCancel(ctx)

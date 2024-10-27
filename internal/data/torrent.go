@@ -80,7 +80,7 @@ func (d *torrentDao) UpTracker(ctx context.Context, ids []int64, trackers []stri
 }
 
 // AddTorrent 添加种子
-func (d *torrentDao) AddTorrent(ctx context.Context, torrents []*domain.Torrent) (err error) {
+func (d *torrentDao) AddTorrent(ctx context.Context, torrents []*domain.DownloadTorrent) (err error) {
 	for _, torrent := range torrents {
 		trt := transmissionrpc.TorrentAddPayload{
 			Filename: &torrent.URL,

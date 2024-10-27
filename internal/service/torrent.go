@@ -74,9 +74,9 @@ func (s *TorrentService) Add(ctx context.Context, req *pb.AddRequest) (res *empt
 		}
 	}
 
-	torrents := make([]*domain.Torrent, 0, len(urls))
+	torrents := make([]*domain.DownloadTorrent, 0, len(urls))
 	for _, urlStr := range urls {
-		torrent := &domain.Torrent{
+		torrent := &domain.DownloadTorrent{
 			URL:    urlStr,
 			Path:   col.None[string](),
 			Labels: col.None[[]string](),
@@ -182,7 +182,7 @@ func (s *TorrentService) GetProperties(ctx context.Context, req *pb.GetPropertie
 		return nil, err
 	}
 	if !qbt.HasValue() {
-		return nil, errors.ResourceNotExist("Torrent hash was not found")
+		return nil, errors.ResourceNotExist("DownloadTorrent hash was not found")
 	}
 
 	return qbt.Value(), nil
