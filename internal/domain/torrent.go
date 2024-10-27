@@ -19,7 +19,6 @@ import (
 )
 
 const torrentFileSuffix = ".torrent"
-const trackerMaxSize = 64 // tracker 列表过长可能会更新失败
 const skipIPsDuration = 60 * time.Second
 
 type PeerKey struct {
@@ -196,6 +195,9 @@ type TorrentUsecase struct {
 
 	// torrents key: <Hash>
 	torrents map[string]*Torrent
+
+	// trackerMaxSize 数量上限
+	trackerMaxSize int
 }
 
 // NewTorrentUsecase .
@@ -249,6 +251,8 @@ func NewTorrentUsecase(
 		rootURL:         bootstrap.GetTrigger().GetHttp().GetRootRul(),
 
 		torrents: make(map[string]*Torrent, 128),
+
+		trackerMaxSize: int(config.GetTrackerMaxSize()),
 	}
 
 	torrentLabel := bootstrap.GetInfra().GetTr().GetAddTorrentLabel()
@@ -285,7 +289,7 @@ func (uc *TorrentUsecase) UpTrackerList(ctx context.Context) (err error) {
 				i = i + 1
 			}
 		}
-		if i >= trackerMaxSize {
+		if i >= uc.trackerMaxSize {
 			break
 		}
 	}

@@ -43,11 +43,15 @@ message Infra {
     // 自定义订阅列表
     string sub_transfer = 5;
 
+    // transfer 数量上限
+    // transfer 数量太多，tr会有概率更新失败
+    uint32 tracker_max_size = 6;
+
     // 添加种子时添加指定标签
-    string add_torrent_label = 6;
+    string add_torrent_label = 7;
 
     // transfer 刷新到种子的时间间隔
-    google.protobuf.Duration transfer_request_interval = 7;
+    google.protobuf.Duration transfer_request_interval = 8;
   }
 
   TR tr = 1;

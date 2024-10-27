@@ -23,6 +23,9 @@ https://btn-prod.ghostchu-services.top/tracker/announce
 """
 # 自定义订阅列表
 sub_transfer = "https://cf.trackerslist.com/best.txt"
+# transfer 数量上限
+# transfer 数量太多，tr会有概率更新失败
+tracker_max_size = 20
 # 添加种子时添加指定标签
 add_torrent_label = "trproxy"
 # transfer 刷新到种子的时间间隔, 3小时
