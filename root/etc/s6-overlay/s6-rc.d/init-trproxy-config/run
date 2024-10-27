@@ -1,8 +1,8 @@
 #!/usr/bin/with-contenv bash
 
-mkdir -p /config/trproxy
+mkdir -p /config
 
 # permissions
-chown abc:abc -R /config/trproxy
+chown abc:abc -R /config
 
 setcap cap_net_admin,cap_net_raw=eip /usr/sbin/trproxy

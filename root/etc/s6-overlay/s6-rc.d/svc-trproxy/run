@@ -1,5 +1,5 @@
 #!/usr/bin/with-contenv bash
 
-cd /config/trproxy
+cd /config
 
-exec s6-setuidgid abc /usr/sbin/trproxy -conf /config/trproxy
+exec s6-setuidgid abc /usr/sbin/trproxy -conf /config
