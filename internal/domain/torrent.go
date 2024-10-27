@@ -18,8 +18,11 @@ import (
 	col "github.com/noxiouz/golang-generics-util/collection"
 )
 
-const torrentFileSuffix = ".torrent"
-const skipIPsDuration = 60 * time.Second
+const (
+	categoryPrefix    = "category:"
+	torrentFileSuffix = ".torrent"
+	skipIPsDuration   = 60 * time.Second
+)
 
 type PeerKey struct {
 	Hash string
@@ -55,6 +58,7 @@ type DownloadTorrent struct {
 	URL      string               // 种子url
 	Path     col.Option[string]   // 种子保存路径
 	Labels   col.Option[[]string] // 种子tag
+	Category col.Option[string]   // qb 的分类，使用labels模拟实现: `category:xxx`
 	Cookie   col.Option[string]   // 发送 Cookie 以下载 .torrent 文件
 	Paused   bool                 // 在暂停状态下添加种子
 	Trackers []string             // 添加到种子的Tracker列表
@@ -118,9 +122,10 @@ type Torrent struct {
 }
 
 type TorrentFilter struct {
-	Status col.Option[string]
-	Label  col.Option[string]
-	Hashes col.Option[[]string]
+	Status   col.Option[string]
+	Category col.Option[string]
+	Label    col.Option[string]
+	Hashes   col.Option[[]string]
 }
 
 type Statistics struct {
@@ -335,6 +340,10 @@ func (uc *TorrentUsecase) Add(ctx context.Context, torrents []*DownloadTorrent) 
 				labels = torrent.Labels.Value()
 			} else {
 				labels = make([]string, 0, 1)
+			}
+			if torrent.Category.HasValue() {
+				// 模拟 qb 分类
+				labels = append(labels, fmt.Sprintf("%s%s", categoryPrefix, torrent.Category.Value()))
 			}
 			labels = append(labels, uc.torrentLabel.Value())
 			torrent.Labels = col.Some(labels)
@@ -767,6 +776,23 @@ func (uc *TorrentUsecase) filterTorrent(torrents []*Torrent, filter TorrentFilte
 			//}
 			//torrents = tmpTorrents
 		}
+	}
+
+	// 分类筛选
+	// 通过标签模拟qb分类
+	if filter.Category.HasValue() {
+		category := fmt.Sprintf("%s%s", categoryPrefix, filter.Category.Value())
+		tmpTorrents := make([]*Torrent, 0, len(torrents))
+		for _, torrent := range torrents {
+			if !torrent.Labels.HasValue() {
+				continue
+			}
+			// 有标签
+			if contains(torrent.Labels.Value(), category) {
+				tmpTorrents = append(tmpTorrents, torrent)
+			}
+		}
+		torrents = tmpTorrents
 	}
 
 	// 标签筛选

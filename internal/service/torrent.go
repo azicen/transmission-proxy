@@ -77,17 +77,21 @@ func (s *TorrentService) Add(ctx context.Context, req *pb.AddRequest) (res *empt
 	torrents := make([]*domain.DownloadTorrent, 0, len(urls))
 	for _, urlStr := range urls {
 		torrent := &domain.DownloadTorrent{
-			URL:    urlStr,
-			Path:   col.None[string](),
-			Labels: col.None[[]string](),
-			Cookie: col.None[string](),
-			Paused: false,
+			URL:      urlStr,
+			Path:     col.None[string](),
+			Labels:   col.None[[]string](),
+			Category: col.None[string](),
+			Cookie:   col.None[string](),
+			Paused:   false,
 		}
 		if req.GetSavepath() != "" {
 			torrent.Path = col.Some(req.GetSavepath())
 		}
 		if req.GetCookie() != "" {
 			torrent.Cookie = col.Some(req.GetCookie())
+		}
+		if req.GetCategory() != "" {
+			torrent.Category = col.Some(req.GetCategory())
 		}
 		var labels []string
 		if req.GetTags() != "" {
@@ -128,12 +132,16 @@ func (s *TorrentService) cacheTorrent(ctx context.Context, fileHeader *multipart
 func (s *TorrentService) GetInfo(ctx context.Context, req *pb.GetInfoRequest) (res *httpbody.HttpBody, err error) {
 	res = &httpbody.HttpBody{Data: make([]byte, 0)}
 	filter := domain.TorrentFilter{
-		Status: col.None[string](),
-		Label:  col.None[string](),
-		Hashes: col.None[[]string](),
+		Status:   col.None[string](),
+		Category: col.None[string](),
+		Label:    col.None[string](),
+		Hashes:   col.None[[]string](),
 	}
 	if req.GetFilter() != "" {
 		filter.Status = col.Some(req.GetFilter())
+	}
+	if req.GetCategory() != "" {
+		filter.Category = col.Some(req.GetCategory())
 	}
 	if req.GetTag() != "" {
 		filter.Label = col.Some(req.GetTag())

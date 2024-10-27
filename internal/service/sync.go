@@ -26,9 +26,10 @@ func NewSyncService(uc *domain.TorrentUsecase) *SyncService {
 // GetMainData 获取 Main Data
 func (s *SyncService) GetMainData(ctx context.Context, req *pb.GetMainDataRequest) (*pb.GetMainDataResponse, error) {
 	torrentOptions, err := s.uc.GetTorrentList(ctx, domain.TorrentFilter{
-		Status: col.None[string](),
-		Label:  col.None[string](),
-		Hashes: col.None[[]string](),
+		Status:   col.None[string](),
+		Category: col.None[string](),
+		Label:    col.None[string](),
+		Hashes:   col.None[[]string](),
 	})
 	if err != nil {
 		return nil, err
