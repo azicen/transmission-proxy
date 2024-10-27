@@ -123,6 +123,10 @@ func (t *ScheduledTask) RunUpTrackerTask() {
 		if err != nil {
 			t.log.Errorw("err", err)
 		}
+		err = t.uc.UpTorrentALLTrackerList(taskCtx)
+		if err != nil {
+			t.log.Errorw("err", err)
+		}
 	}
 
 	task()
