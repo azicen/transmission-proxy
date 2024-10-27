@@ -24,16 +24,22 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH GOPROXY=$GOPROXY go build \
             -o ./bin/app  \
             ./cmd
 
-FROM linuxserver/transmission:4.0.6
+FROM ghcr.io/linuxserver/baseimage-debian:bookworm
 
-RUN apk --no-cache add \
-        gcompat \
+RUN apt update && \
+    apt install -y --no-install-recommends \
+        iputils-ping \
         libcap \
         nftables && \
+    apt autoremove -y && \
+    apt autoclean -y && \
+    apt clean && \
     rm -rf \
-        /tmp/* \
-        /var/cache/apk/* \
-        $HOME/.cache
+        /config/.cache \
+        $HOME/.cache \
+        /var/lib/apt/lists/* \
+        /var/tmp/* \
+        /tmp/*
 
 # copy local files
 COPY root/ /
