@@ -20,6 +20,7 @@ import (
 
 const torrentFileSuffix = ".torrent"
 const trackerMaxSize = 64 // tracker 列表过长可能会更新失败
+const skipIPsDuration = 60 * time.Second
 
 type PeerKey struct {
 	Hash string
@@ -47,10 +48,6 @@ type Peer struct {
 	//Country     string  // 国家
 	//CountryCode string  // 国家代码
 
-	// 暂停跟踪计数器
-	// 当BanIP时创建计数器，暂时停止展示该Peer。
-	// 避免TR接口来不及停止导致PBH进行全量BanIPList更新。
-	PauseTrackCounter col.Option[int8]
 	// 活跃
 	IsActive bool
 }
@@ -180,8 +177,9 @@ type TorrentRepo interface {
 
 // TorrentUsecase .
 type TorrentUsecase struct {
-	repo TorrentRepo
-	log  *log.Helper
+	torrentRepo TorrentRepo
+	banIPRepo   BanIPRepo
+	log         *log.Helper
 
 	statistics Statistics
 
@@ -201,7 +199,12 @@ type TorrentUsecase struct {
 }
 
 // NewTorrentUsecase .
-func NewTorrentUsecase(bootstrap *conf.Bootstrap, dao TorrentRepo, logger log.Logger) *TorrentUsecase {
+func NewTorrentUsecase(
+	bootstrap *conf.Bootstrap,
+	banIPRepo BanIPRepo,
+	torrentRepo TorrentRepo,
+	logger log.Logger,
+) *TorrentUsecase {
 	// 初始化Transfer列表
 	config := bootstrap.GetInfra().GetTr()
 	subTransferURL := config.GetSubTransfer()
@@ -222,14 +225,15 @@ func NewTorrentUsecase(bootstrap *conf.Bootstrap, dao TorrentRepo, logger log.Lo
 		defaultTrackers = append(defaultTrackers, urlStr)
 	}
 
-	statistics, err := dao.GetHistoricalStatistics()
+	statistics, err := torrentRepo.GetHistoricalStatistics()
 	if err != nil {
 		panic(err)
 	}
 
 	uc := &TorrentUsecase{
-		repo: dao,
-		log:  log.NewHelper(logger),
+		torrentRepo: torrentRepo,
+		banIPRepo:   banIPRepo,
+		log:         log.NewHelper(logger),
 
 		statistics: Statistics{
 			TotalDownloaded:        statistics.TotalDownloaded,
@@ -266,7 +270,7 @@ func (uc *TorrentUsecase) UpTrackerList(ctx context.Context) (err error) {
 		i = i + 1
 	}
 
-	lines, err := uc.repo.GetResponseLine(ctx, uc.subTransferURL)
+	lines, err := uc.torrentRepo.GetResponseLine(ctx, uc.subTransferURL)
 	if err != nil {
 		return
 	}
@@ -296,7 +300,7 @@ func (uc *TorrentUsecase) UpTrackerList(ctx context.Context) (err error) {
 
 // UpTorrentALLTrackerList 更新所有种子的Tracker
 func (uc *TorrentUsecase) UpTorrentALLTrackerList(ctx context.Context) (err error) {
-	torrentsOption, err := uc.repo.GetTorrentAll(ctx)
+	torrentsOption, err := uc.torrentRepo.GetTorrentAll(ctx)
 	if err != nil {
 		return
 	}
@@ -310,7 +314,7 @@ func (uc *TorrentUsecase) UpTorrentALLTrackerList(ctx context.Context) (err erro
 		ids = append(ids, *trt.ID)
 	}
 
-	err = uc.repo.UpTracker(ctx, ids, uc.trackers)
+	err = uc.torrentRepo.UpTracker(ctx, ids, uc.trackers)
 	return
 }
 
@@ -329,7 +333,7 @@ func (uc *TorrentUsecase) Add(ctx context.Context, torrents []*DownloadTorrent) 
 			torrent.Trackers = uc.trackers
 		}
 	}
-	err = uc.repo.AddTorrent(ctx, torrents)
+	err = uc.torrentRepo.AddTorrent(ctx, torrents)
 
 	// TODO 立刻更新数据
 	return
@@ -442,9 +446,44 @@ func (uc *TorrentUsecase) GetPeers(ctx context.Context, hash string) (res col.Op
 	}
 
 	peers := make(map[PeerKey]*Peer, len(torrent.Peers))
+
+	// 过滤掉近期被ban的ip，避免TR接口来不及停止导致PBH进行全量BanIPList更新。
+	nowTime := time.Now()
+	ips := make([]string, 0, len(torrent.Peers))
+	for key := range torrent.Peers {
+		ips = append(ips, key.IP)
+	}
+	skipIPs := make(map[string]struct{}, len(torrent.Peers))
+	status, err := uc.banIPRepo.GetBannedIPV4Status(ctx, ips)
+	if err != nil {
+		return
+	}
+	for ip, banTime := range status {
+		if !banTime.HasValue() {
+			continue
+		}
+		if nowTime.Sub(*banTime.Value()) < skipIPsDuration {
+			continue
+		}
+		skipIPs[ip] = struct{}{}
+	}
+	status, err = uc.banIPRepo.GetBannedIPV6Status(ctx, ips)
+	if err != nil {
+		return
+	}
+	for ip, banTime := range status {
+		if !banTime.HasValue() {
+			continue
+		}
+		if nowTime.Sub(*banTime.Value()) < skipIPsDuration {
+			continue
+		}
+		skipIPs[ip] = struct{}{}
+	}
+
 	for key := range torrent.Peers {
 		var peerOption col.Option[*Peer]
-		peerOption, err = uc.repo.GetPeer(ctx, key)
+		peerOption, err = uc.torrentRepo.GetPeer(ctx, key)
 		if err != nil {
 			return
 		}
@@ -453,14 +492,8 @@ func (uc *TorrentUsecase) GetPeers(ctx context.Context, hash string) (res col.Op
 		}
 		peer := peerOption.Value()
 
-		if !peer.PauseTrackCounter.HasValue() {
-			// 暂停跟踪计数器
-			track := peer.PauseTrackCounter.Value() - 1
-			if track > 0 {
-				peer.PauseTrackCounter = col.Some(track)
-				continue
-			}
-			peer.PauseTrackCounter = col.None[int8]()
+		if _, exist := skipIPs[peer.IP]; exist {
+			continue
 		}
 		if !peer.IsActive {
 			continue
@@ -473,7 +506,7 @@ func (uc *TorrentUsecase) GetPeers(ctx context.Context, hash string) (res col.Op
 
 // UpClientData 更新tr客户端数据
 func (uc *TorrentUsecase) UpClientData(ctx context.Context) (err error) {
-	torrentsOption, err := uc.repo.GetTorrentAll(ctx)
+	torrentsOption, err := uc.torrentRepo.GetTorrentAll(ctx)
 	if err != nil {
 		return
 	}
@@ -495,13 +528,13 @@ func (uc *TorrentUsecase) UpClientData(ctx context.Context) (err error) {
 
 		for _, trPeer := range trt.Peers {
 			key := PeerKey{*trt.HashString, trPeer.Address, int32(trPeer.Port)}
-			peerInfoOption, err := uc.repo.GetPeer(ctx, key)
+			peerInfoOption, err := uc.torrentRepo.GetPeer(ctx, key)
 			if err != nil {
 				return err
 			}
 
-			intervalDownloaded := uc.repo.GetStateRefreshInterval() * trPeer.RateToClient
-			intervalUploaded := uc.repo.GetStateRefreshInterval() * trPeer.RateToPeer
+			intervalDownloaded := uc.torrentRepo.GetStateRefreshInterval() * trPeer.RateToClient
+			intervalUploaded := uc.torrentRepo.GetStateRefreshInterval() * trPeer.RateToPeer
 			totalDownloadedIncrement = totalDownloadedIncrement + intervalDownloaded
 			totalUploadedIncrement = totalUploadedIncrement + intervalUploaded
 			downloadSpeed = downloadSpeed + trPeer.RateToClient
@@ -516,19 +549,18 @@ func (uc *TorrentUsecase) UpClientData(ctx context.Context) (err error) {
 					connection = "μTP"
 				}
 				peerInfo = &Peer{
-					IP:                trPeer.Address,
-					Port:              uint16(trPeer.Port),
-					Connection:        connection,
-					PeerIdClient:      trPeer.ClientName,
-					ClientName:        trPeer.ClientName,
-					Progress:          0,
-					DownloadSpeed:     0, // B/s
-					Downloaded:        0,
-					UploadSpeed:       0, // B/s
-					Uploaded:          0,
-					Flags:             "",
-					PauseTrackCounter: col.None[int8](),
-					IsActive:          true,
+					IP:            trPeer.Address,
+					Port:          uint16(trPeer.Port),
+					Connection:    connection,
+					PeerIdClient:  trPeer.ClientName,
+					ClientName:    trPeer.ClientName,
+					Progress:      0,
+					DownloadSpeed: 0, // B/s
+					Downloaded:    0,
+					UploadSpeed:   0, // B/s
+					Uploaded:      0,
+					Flags:         "",
+					IsActive:      true,
 				}
 			}
 			peerInfo.Progress = float32(trPeer.Progress)
@@ -538,7 +570,7 @@ func (uc *TorrentUsecase) UpClientData(ctx context.Context) (err error) {
 			peerInfo.Uploaded = peerInfo.Uploaded + intervalUploaded
 			peerInfo.Flags = trPeer.FlagStr
 
-			err = uc.repo.SetPeer(ctx, key, peerInfo)
+			err = uc.torrentRepo.SetPeer(ctx, key, peerInfo)
 			if err != nil {
 				return err
 			}
@@ -561,7 +593,7 @@ func (uc *TorrentUsecase) UpClientData(ctx context.Context) (err error) {
 
 // GetStateRefreshInterval 获取状态更新间隔
 func (uc *TorrentUsecase) GetStateRefreshInterval() int64 {
-	return uc.repo.GetStateRefreshInterval()
+	return uc.torrentRepo.GetStateRefreshInterval()
 }
 
 // GetStatistics 获取统计数据
@@ -575,7 +607,7 @@ func (uc *TorrentUsecase) SaveStatistics() (err error) {
 		TotalDownloaded: uc.statistics.TotalDownloaded + uc.statistics.TotalDownloadedSession,
 		TotalUploaded:   uc.statistics.TotalUploaded + uc.statistics.TotalUploadedSession,
 	}
-	err = uc.repo.SaveHistoricalStatistics(statistics)
+	err = uc.torrentRepo.SaveHistoricalStatistics(statistics)
 	return
 }
 
@@ -587,7 +619,7 @@ func (uc *TorrentUsecase) CacheTmpTorrentFile(ctx context.Context, data []byte) 
 
 	id := uuid.New().String()
 	filename := fmt.Sprintf("%s%s", id, torrentFileSuffix)
-	err = uc.repo.CacheTmpTorrentFile(ctx, filename, data)
+	err = uc.torrentRepo.CacheTmpTorrentFile(ctx, filename, data)
 	if err != nil {
 		return
 	}
@@ -598,7 +630,7 @@ func (uc *TorrentUsecase) CacheTmpTorrentFile(ctx context.Context, data []byte) 
 
 // GetTmpTorrentFile 获取缓存的临时种子文件
 func (uc *TorrentUsecase) GetTmpTorrentFile(ctx context.Context, filename string) (data []byte, err error) {
-	dataOption, err := uc.repo.GetTmpTorrentFile(ctx, filename)
+	dataOption, err := uc.torrentRepo.GetTmpTorrentFile(ctx, filename)
 	if err != nil {
 		return
 	}

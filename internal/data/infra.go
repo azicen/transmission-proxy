@@ -22,7 +22,12 @@ import (
 )
 
 // ProviderSet is service providers.
-var ProviderSet = wire.NewSet(NewInfra, NewAppDao, NewTorrentDao)
+var ProviderSet = wire.NewSet(
+	NewInfra,
+	NewAppDao,
+	NewBanIPDao,
+	NewTorrentDao,
+)
 
 // PeerCacheSize Peer缓存大小
 const PeerCacheSize = 1 << 20 // 1M内存

@@ -13,34 +13,6 @@ import (
 
 // AppRepo .
 type AppRepo interface {
-
-	// GetBannedIPV4Status 获取封禁ipv4状态
-	GetBannedIPV4Status(ctx context.Context, ips []string) (map[string]bool, error)
-
-	// GetBannedIPV6Status 获取封禁ipv6状态
-	GetBannedIPV6Status(ctx context.Context, ips []string) (map[string]bool, error)
-
-	// BanIPV4 封禁ipv4
-	BanIPV4(ctx context.Context, ips []string) error
-
-	// BanIPV6 封禁ipv6
-	BanIPV6(ctx context.Context, ips []string) error
-
-	// UnbanIPV4 解禁ipv4
-	UnbanIPV4(ctx context.Context, ips []string) error
-
-	// UnbanIPV6 解禁ipv6
-	UnbanIPV6(ctx context.Context, ips []string) error
-
-	// UpBanIPV4List 更新ipv4封禁列表
-	UpBanIPV4List(ctx context.Context, ips []string) error
-
-	// UpBanIPV6List 更新ipv6封禁列表
-	UpBanIPV6List(ctx context.Context, ips []string) error
-
-	// ClearBanList 清空Ban列表
-	ClearBanList(ctx context.Context) error
-
 	// GetPreferences 获取首选项
 	GetPreferences(ctx context.Context) (transmissionrpc.SessionArguments, error)
 
@@ -55,14 +27,19 @@ type Preferences struct {
 
 // AppUsecase .
 type AppUsecase struct {
-	repo AppRepo
-	log  *log.Helper
+	appRepo   AppRepo
+	banIPRepo BanIPRepo
+	log       *log.Helper
 }
 
 // NewAppUsecase .
-func NewAppUsecase(dao AppRepo, logger log.Logger) *AppUsecase {
+func NewAppUsecase(appRepo AppRepo, banIPRepo BanIPRepo, logger log.Logger) *AppUsecase {
 
-	return &AppUsecase{repo: dao, log: log.NewHelper(logger)}
+	return &AppUsecase{
+		appRepo:   appRepo,
+		banIPRepo: banIPRepo,
+		log:       log.NewHelper(logger),
+	}
 }
 
 // BanIP 封禁IP
@@ -83,36 +60,36 @@ func (uc *AppUsecase) BanIP(ctx context.Context, ips []string) error {
 	}
 
 	// 过滤已经封禁的ip
-	ipStatuses, err := uc.repo.GetBannedIPV4Status(ctx, readyIPV4)
+	ipStatuses, err := uc.banIPRepo.GetBannedIPV4Status(ctx, readyIPV4)
 	if err != nil {
 		return err
 	}
 	readyIPV4 = make([]string, 0, len(ipStatuses))
-	for ip, exist := range ipStatuses {
-		if !exist {
+	for ip, banTime := range ipStatuses {
+		if !banTime.HasValue() {
 			readyIPV4 = append(readyIPV4, ip)
 		}
 	}
-	ipStatuses, err = uc.repo.GetBannedIPV6Status(ctx, readyIPV6)
+	ipStatuses, err = uc.banIPRepo.GetBannedIPV6Status(ctx, readyIPV6)
 	if err != nil {
 		return err
 	}
 	readyIPV6 = make([]string, 0, len(ipStatuses))
-	for ip, exist := range ipStatuses {
-		if !exist {
+	for ip, banTime := range ipStatuses {
+		if !banTime.HasValue() {
 			readyIPV6 = append(readyIPV6, ip)
 		}
 	}
 
 	// 封禁
 	if len(readyIPV4) != 0 {
-		err := uc.repo.BanIPV4(ctx, readyIPV4)
+		err := uc.banIPRepo.BanIPV4(ctx, readyIPV4)
 		if err != nil {
 			return err
 		}
 	}
 	if len(readyIPV6) != 0 {
-		err := uc.repo.BanIPV6(ctx, readyIPV6)
+		err := uc.banIPRepo.BanIPV6(ctx, readyIPV6)
 		if err != nil {
 			return err
 		}
@@ -138,36 +115,36 @@ func (uc *AppUsecase) UnbanIP(ctx context.Context, ips []string) error {
 	}
 
 	// 过滤没有封禁的ip
-	ipStatuses, err := uc.repo.GetBannedIPV4Status(ctx, readyIPV4)
+	ipStatuses, err := uc.banIPRepo.GetBannedIPV4Status(ctx, readyIPV4)
 	if err != nil {
 		return err
 	}
 	readyIPV4 = make([]string, 0, len(ipStatuses))
-	for ip, exist := range ipStatuses {
-		if exist {
+	for ip, banTime := range ipStatuses {
+		if banTime.HasValue() {
 			readyIPV4 = append(readyIPV4, ip)
 		}
 	}
-	ipStatuses, err = uc.repo.GetBannedIPV6Status(ctx, readyIPV6)
+	ipStatuses, err = uc.banIPRepo.GetBannedIPV6Status(ctx, readyIPV6)
 	if err != nil {
 		return err
 	}
 	readyIPV6 = make([]string, 0, len(ipStatuses))
-	for ip, exist := range ipStatuses {
-		if exist {
+	for ip, banTime := range ipStatuses {
+		if banTime.HasValue() {
 			readyIPV6 = append(readyIPV6, ip)
 		}
 	}
 
 	// 解禁
 	if len(readyIPV4) != 0 {
-		err := uc.repo.UnbanIPV4(ctx, readyIPV4)
+		err := uc.banIPRepo.UnbanIPV4(ctx, readyIPV4)
 		if err != nil {
 			return err
 		}
 	}
 	if len(readyIPV6) != 0 {
-		err := uc.repo.UnbanIPV6(ctx, readyIPV6)
+		err := uc.banIPRepo.UnbanIPV6(ctx, readyIPV6)
 		if err != nil {
 			return err
 		}
@@ -193,17 +170,17 @@ func (uc *AppUsecase) UpBanIPList(ctx context.Context, ips []string) (err error)
 	}
 
 	// 清空ban列表
-	err = uc.repo.ClearBanList(ctx)
+	err = uc.banIPRepo.ClearBanList(ctx)
 	if err != nil {
 		return
 	}
 
 	// 全量ban
-	err = uc.repo.BanIPV4(ctx, readyIPV4)
+	err = uc.banIPRepo.BanIPV4(ctx, readyIPV4)
 	if err != nil {
 		return
 	}
-	err = uc.repo.BanIPV6(ctx, readyIPV6)
+	err = uc.banIPRepo.BanIPV6(ctx, readyIPV6)
 	if err != nil {
 		return
 	}
@@ -211,7 +188,7 @@ func (uc *AppUsecase) UpBanIPList(ctx context.Context, ips []string) (err error)
 }
 
 func (uc *AppUsecase) GetPreferences(ctx context.Context) (*pb.GetPreferencesResponse, error) {
-	pre, err := uc.repo.GetPreferences(ctx)
+	pre, err := uc.appRepo.GetPreferences(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -308,7 +285,7 @@ func (uc *AppUsecase) SetPreferences(ctx context.Context, pre *Preferences) (err
 		trd := transmissionrpc.SessionArguments{
 			PeerPort: &peerPort,
 		}
-		err = uc.repo.SetPreferences(ctx, trd)
+		err = uc.appRepo.SetPreferences(ctx, trd)
 		if err != nil {
 			return
 		}

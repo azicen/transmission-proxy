@@ -32,14 +32,15 @@ func initApp(bootstrap *conf.Bootstrap, logger log.Logger) (*kratos.App, func(),
 		return nil, nil, err
 	}
 	appRepo := data.NewAppDao(infra, logger)
-	appUsecase := domain.NewAppUsecase(appRepo, logger)
+	banIPRepo := data.NewBanIPDao(infra, logger)
+	appUsecase := domain.NewAppUsecase(appRepo, banIPRepo, logger)
 	appService := service.NewAppService(appUsecase)
 	torrentRepo, err := data.NewTorrentDao(infra, logger)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	torrentUsecase := domain.NewTorrentUsecase(bootstrap, torrentRepo, logger)
+	torrentUsecase := domain.NewTorrentUsecase(bootstrap, banIPRepo, torrentRepo, logger)
 	authService := service.NewAuthService(torrentUsecase)
 	syncService := service.NewSyncService(torrentUsecase)
 	torrentService := service.NewTorrentService(torrentUsecase)
