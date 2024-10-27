@@ -20,7 +20,6 @@ request_interval = "5s"
 # 换行符间隔
 transfer = """
 https://btn-prod.ghostchu-services.top/tracker/announce
-http://tracker.opentrackr.org:1337/announce
 """
 # 自定义订阅列表
 sub_transfer = "https://cf.trackerslist.com/best.txt"
