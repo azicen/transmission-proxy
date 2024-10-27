@@ -642,7 +642,7 @@ func (uc *TorrentUsecase) filterTorrent(torrents []*Torrent, filter TorrentFilte
 		torrents = tmpTorrents
 	}
 
-	return torrents[:0]
+	return torrents
 }
 
 // 判断字符串数组中是否包含指定元素
