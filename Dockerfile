@@ -29,7 +29,7 @@ FROM ghcr.io/linuxserver/baseimage-debian:bookworm
 RUN apt update && \
     apt install -y --no-install-recommends \
         iputils-ping \
-        libcap \
+        libcap2-dev \
         nftables && \
     apt autoremove -y && \
     apt autoclean -y && \
