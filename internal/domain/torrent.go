@@ -149,7 +149,7 @@ type TorrentRepo interface {
 	GetResponseLine(_ context.Context, trackerListURL string) ([]string, error)
 
 	// AddTorrent 添加种子
-	AddTorrent(ctx context.Context, torrents []*DownloadTorrent, trackers []string) error
+	AddTorrent(ctx context.Context, torrents []*DownloadTorrent) (ids []int64, err error)
 
 	// UpTracker 更新Tracker
 	UpTracker(ctx context.Context, ids []int64, trackers []string) (err error)
@@ -180,6 +180,9 @@ type TorrentRepo interface {
 
 	// GetTmpTorrentFile 获取缓存的临时种子文件
 	GetTmpTorrentFile(ctx context.Context, filename string) (data col.Option[[]byte], err error)
+
+	// ReannounceTrackerServer 重新通告tracker服务器
+	ReannounceTrackerServer(ctx context.Context, ids []int64) (err error)
 }
 
 // TorrentUsecase .
@@ -327,6 +330,10 @@ func (uc *TorrentUsecase) UpTorrentALLTrackerList(ctx context.Context) (err erro
 	}
 
 	err = uc.torrentRepo.UpTracker(ctx, ids, uc.trackers)
+	if err != nil {
+		return
+	}
+	err = uc.torrentRepo.ReannounceTrackerServer(ctx, ids)
 	return
 }
 
@@ -348,7 +355,21 @@ func (uc *TorrentUsecase) Add(ctx context.Context, torrents []*DownloadTorrent) 
 			torrent.Labels = col.Some(labels)
 		}
 	}
-	err = uc.torrentRepo.AddTorrent(ctx, torrents, uc.trackers)
+	ids, err := uc.torrentRepo.AddTorrent(ctx, torrents)
+	if err != nil {
+		return
+	}
+	// 添加tracker
+	if len(ids) > 0 {
+		err := uc.torrentRepo.UpTracker(ctx, ids, uc.trackers)
+		if err != nil {
+			uc.log.Errorf("更新种子Tracker时出现错误 err=%v", err)
+		}
+		err = uc.torrentRepo.ReannounceTrackerServer(ctx, ids)
+		if err != nil {
+			uc.log.Errorf("重写通告Tracker服务器时出现错误 err=%v", err)
+		}
+	}
 
 	// TODO 立刻更新数据
 	return

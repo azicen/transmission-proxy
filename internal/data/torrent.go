@@ -85,8 +85,8 @@ func (d *torrentDao) UpTracker(ctx context.Context, ids []int64, trackers []stri
 }
 
 // AddTorrent 添加种子
-func (d *torrentDao) AddTorrent(ctx context.Context, torrents []*domain.DownloadTorrent, trackers []string) (err error) {
-	ids := make([]int64, len(torrents))
+func (d *torrentDao) AddTorrent(ctx context.Context, torrents []*domain.DownloadTorrent) (ids []int64, err error) {
+	ids = make([]int64, len(torrents))
 	for _, torrent := range torrents {
 		trt := transmissionrpc.TorrentAddPayload{
 			Filename: &torrent.URL,
@@ -110,13 +110,6 @@ func (d *torrentDao) AddTorrent(ctx context.Context, torrents []*domain.Download
 		}
 
 		ids = append(ids, *t.ID)
-	}
-	// 添加tracker
-	if len(ids) > 0 {
-		err = d.UpTracker(ctx, ids, trackers)
-		if err != nil {
-			d.log.Errorf("更新种子Tracker时出现错误 err=%v", err)
-		}
 	}
 
 	return
@@ -237,4 +230,10 @@ func (d *torrentDao) GetTmpTorrentFile(ctx context.Context, filename string) (co
 		return col.None[[]byte](), err
 	}
 	return col.Some(data), nil
+}
+
+// ReannounceTrackerServer 重新通告tracker服务器
+func (d *torrentDao) ReannounceTrackerServer(ctx context.Context, ids []int64) (err error) {
+	err = d.infra.TR.TorrentReannounceIDs(ctx, ids)
+	return
 }

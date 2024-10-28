@@ -8,14 +8,14 @@ host = "0.0.0.0"
 port = 9092
 # 覆盖自动生成的公共URL，如果与TR客户端不再同一个环境运行，这很有用
 root_rul = "http://localhost:9092"
-timeout = "5s"
+timeout = "30s"
 
 [infra.tr]
 # Transmission RPC URL
 # Example: http://user:password@tr_rpc_host:port/transmission/rpc
 rpc_url = "http://${USER:admin}:${PASS:admin}@localhost:9091/transmission/rpc"
 # 刷新tr数据的时间间隔
-request_interval = "5s"
+request_interval = "10s"
 # 添加以下 transfer 到新的种子
 # 换行符间隔
 transfer = """
