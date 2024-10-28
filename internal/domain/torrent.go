@@ -468,7 +468,7 @@ func (uc *TorrentUsecase) GetPeers(ctx context.Context, hash string) (res col.Op
 	for key := range torrent.Peers {
 		ips = append(ips, key.IP)
 	}
-	skipIPs := make(map[string]struct{}, len(torrent.Peers))
+	skipIPs := make(map[string]*time.Time, len(torrent.Peers))
 	status, err := uc.banIPRepo.GetBannedIPV4Status(ctx, ips)
 	if err != nil {
 		return
@@ -477,10 +477,7 @@ func (uc *TorrentUsecase) GetPeers(ctx context.Context, hash string) (res col.Op
 		if !banTime.HasValue() {
 			continue
 		}
-		if nowTime.Sub(*banTime.Value()) < skipIPsDuration {
-			continue
-		}
-		skipIPs[ip] = struct{}{}
+		skipIPs[ip] = banTime.Value()
 	}
 	status, err = uc.banIPRepo.GetBannedIPV6Status(ctx, ips)
 	if err != nil {
@@ -490,10 +487,7 @@ func (uc *TorrentUsecase) GetPeers(ctx context.Context, hash string) (res col.Op
 		if !banTime.HasValue() {
 			continue
 		}
-		if nowTime.Sub(*banTime.Value()) < skipIPsDuration {
-			continue
-		}
-		skipIPs[ip] = struct{}{}
+		skipIPs[ip] = banTime.Value()
 	}
 
 	for key := range torrent.Peers {
@@ -507,8 +501,16 @@ func (uc *TorrentUsecase) GetPeers(ctx context.Context, hash string) (res col.Op
 		}
 		peer := peerOption.Value()
 
-		if _, exist := skipIPs[peer.IP]; exist {
-			continue
+		if banTime, exist := skipIPs[peer.IP]; exist {
+			// 封禁超过一定时间
+			if nowTime.Sub(*banTime) < skipIPsDuration {
+				continue
+			}
+			// 即使超过一定时间了，也检查上下行是否有流量
+			// 排除没有流量且被封禁的peer
+			if peer.DownloadSpeed <= 0 && peer.UploadSpeed <= 0 {
+				continue
+			}
 		}
 		if !peer.IsActive {
 			continue
