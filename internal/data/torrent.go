@@ -70,6 +70,7 @@ func (d *torrentDao) GetResponseLine(_ context.Context, trackerListURL string) (
 
 // UpTracker 更新Tracker
 func (d *torrentDao) UpTracker(ctx context.Context, ids []int64, trackers []string) (err error) {
+	// 很怪，如果没有这个空行，tr将永远不会刷新tracker服务器
 	tmpTrackers := make([]string, 0, len(trackers)*2)
 	for _, tracker := range trackers {
 		tmpTrackers = append(tmpTrackers, tracker, "")
@@ -77,7 +78,7 @@ func (d *torrentDao) UpTracker(ctx context.Context, ids []int64, trackers []stri
 	// 添加tracker
 	data := transmissionrpc.TorrentSetPayload{
 		IDs:         ids,
-		TrackerList: trackers,
+		TrackerList: tmpTrackers,
 	}
 	err = d.infra.TR.TorrentSet(ctx, data)
 	return
@@ -112,10 +113,7 @@ func (d *torrentDao) AddTorrent(ctx context.Context, torrents []*domain.Download
 	}
 	// 添加tracker
 	if len(ids) > 0 {
-		err = d.infra.TR.TorrentSet(ctx, transmissionrpc.TorrentSetPayload{
-			IDs:         ids,
-			TrackerList: trackers,
-		})
+		err = d.UpTracker(ctx, ids, trackers)
 		if err != nil {
 			d.log.Errorf("更新种子Tracker时出现错误 err=%v", err)
 		}
