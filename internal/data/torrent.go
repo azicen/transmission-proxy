@@ -70,6 +70,10 @@ func (d *torrentDao) GetResponseLine(_ context.Context, trackerListURL string) (
 
 // UpTracker 更新Tracker
 func (d *torrentDao) UpTracker(ctx context.Context, ids []int64, trackers []string) (err error) {
+	tmpTrackers := make([]string, 0, len(trackers)*2)
+	for _, tracker := range trackers {
+		tmpTrackers = append(tmpTrackers, tracker, "")
+	}
 	// 添加tracker
 	data := transmissionrpc.TorrentSetPayload{
 		IDs:         ids,
@@ -80,7 +84,8 @@ func (d *torrentDao) UpTracker(ctx context.Context, ids []int64, trackers []stri
 }
 
 // AddTorrent 添加种子
-func (d *torrentDao) AddTorrent(ctx context.Context, torrents []*domain.DownloadTorrent) (err error) {
+func (d *torrentDao) AddTorrent(ctx context.Context, torrents []*domain.DownloadTorrent, trackers []string) (err error) {
+	ids := make([]int64, len(torrents))
 	for _, torrent := range torrents {
 		trt := transmissionrpc.TorrentAddPayload{
 			Filename: &torrent.URL,
@@ -103,15 +108,19 @@ func (d *torrentDao) AddTorrent(ctx context.Context, torrents []*domain.Download
 			d.log.Errorf("添加种子时出现错误 torrent=%s err=%v", torrent.URL, err)
 		}
 
-		// 添加tracker
+		ids = append(ids, *t.ID)
+	}
+	// 添加tracker
+	if len(ids) > 0 {
 		err = d.infra.TR.TorrentSet(ctx, transmissionrpc.TorrentSetPayload{
-			IDs:         []int64{*t.ID},
-			TrackerList: torrent.Trackers,
+			IDs:         ids,
+			TrackerList: trackers,
 		})
 		if err != nil {
-			d.log.Errorf("更新种子Tracker时出现错误 torrent=%s err=%v", torrent.URL, err)
+			d.log.Errorf("更新种子Tracker时出现错误 err=%v", err)
 		}
 	}
+
 	return
 }
 

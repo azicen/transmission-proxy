@@ -61,7 +61,6 @@ type DownloadTorrent struct {
 	Category col.Option[string]   // qb 的分类，使用labels模拟实现: `category:xxx`
 	Cookie   col.Option[string]   // 发送 Cookie 以下载 .torrent 文件
 	Paused   bool                 // 在暂停状态下添加种子
-	Trackers []string             // 添加到种子的Tracker列表
 }
 
 // Torrent 种子
@@ -150,7 +149,7 @@ type TorrentRepo interface {
 	GetResponseLine(_ context.Context, trackerListURL string) ([]string, error)
 
 	// AddTorrent 添加种子
-	AddTorrent(ctx context.Context, torrents []*DownloadTorrent) error
+	AddTorrent(ctx context.Context, torrents []*DownloadTorrent, trackers []string) error
 
 	// UpTracker 更新Tracker
 	UpTracker(ctx context.Context, ids []int64, trackers []string) (err error)
@@ -347,10 +346,9 @@ func (uc *TorrentUsecase) Add(ctx context.Context, torrents []*DownloadTorrent) 
 			}
 			labels = append(labels, uc.torrentLabel.Value())
 			torrent.Labels = col.Some(labels)
-			torrent.Trackers = uc.trackers
 		}
 	}
-	err = uc.torrentRepo.AddTorrent(ctx, torrents)
+	err = uc.torrentRepo.AddTorrent(ctx, torrents, uc.trackers)
 
 	// TODO 立刻更新数据
 	return
