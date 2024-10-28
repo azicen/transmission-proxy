@@ -953,7 +953,7 @@ func trTorrentToTorrent(trt transmissionrpc.Torrent) *Torrent {
 		IsStalled:              *trt.IsStalled,
 	}
 
-	torrent.Progress = float32((float64(torrent.HaveValidSize) - float64(torrent.LeftUntilDone)) / float64(torrent.HaveValidSize))
+	torrent.Progress = float32((float64(torrent.TotalSize) - float64(torrent.LeftUntilDone)) / float64(torrent.TotalSize))
 
 	if len(trt.Labels) > 0 {
 		torrent.Labels = col.Some(trt.Labels)
